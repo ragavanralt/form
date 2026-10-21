@@ -504,14 +504,14 @@ function cardioAsk(){if(cardioMin(get(todayK()))>0)return;openSheet('cask','Get 
 function liftDone(d){return !!(d.wo&&d.wo.status==='done'&&d.wo.ex.some(e=>e.sets.some(s=>s.done&&s.k!=='W')))}
 function calPts(cal,logged){if(!logged)return 0;return [0,1,1,2,3][calPts4(cal)]}
 function calPts4(cal){const T=S.targets.cal,x=cal-T,m=S.profile.mode;
-  if(m==='bulk'){if(x<=-300)return 0;if(x<-200)return 2;if(x<-100)return 3;if(x<=300)return 4;if(x<=600)return 3;return 2}
+  if(m==='bulk'){if(x<=-300)return 0;if(x<-200)return 2;if(x<-100)return 3;return 4}
   if(m==='maintain'){const a=Math.abs(x);return a<=150?4:a<=300?3:a<=450?2:a<=600?1:0}
   if(x>=300)return 0;if(x>200)return 2;if(x>100)return 3;if(x>=-300)return 4;if(x>=-600)return 3;return 2}
 const BUF=100;
 const calKind=()=>{const m=S.profile.mode;return m==='bulk'||m==='maintain'?m:'cut'};
 function calWindow(){const T=S.targets.cal,m=calKind();return m==='bulk'?[T-BUF,T+300]:m==='maintain'?[T-150,T+150]:[T-300,T+BUF]}
 function calNote(){const T=S.targets.cal,m=calKind(),[w0,w1]=calWindow();return m==='cut'?`Goal ${fmt(T)}, buffer to ${fmt(w1)}`:m==='bulk'?`Goal ${fmt(T)}, buffer down to ${fmt(w0)}`:`Window ${fmt(w0)} to ${fmt(w1)}`}
-function calHow(){const T=S.targets.cal,m=calKind(),[w0,w1]=calWindow();return m==='cut'?`Your goal is ${fmt(T)}. ${fmt(w0)} to ${fmt(w1)} gets all 3. The top ${BUF} is a buffer for estimate error, not extra food to use.`:m==='bulk'?`Your goal is ${fmt(T)}. ${fmt(w0)} to ${fmt(w1)} gets all 3. The bottom ${BUF} is a buffer for estimate error.`:`${fmt(w0)} to ${fmt(w1)} kcal gets all 3`}
+function calHow(){const T=S.targets.cal,m=calKind(),[w0,w1]=calWindow();return m==='cut'?`Your goal is ${fmt(T)}. ${fmt(w0)} to ${fmt(w1)} gets all 3. The top ${BUF} is a buffer for estimate error, not extra food to use.`:m==='bulk'?`Your goal is ${fmt(T)}. Anything over it gets all 3. The ${BUF} just under it is a buffer for estimate error, not a target.`:`${fmt(w0)} to ${fmt(w1)} kcal gets all 3`}
 function proPts(p){const T=S.targets.pro;return p>=T?2:p>=T-20?1:0}
 function cardioMin(d){return (d.cardio||[]).reduce((a,c)=>a+(+c.min||0),0)}
 function score(k){const d=get(k),t=totals(d),fx=fixture(k);const cal=calPts(t.cal,d.meals.length>0),pro=proPts(t.p),tr=(fx==='Rest'||liftDone(d))?2:0,ca=cardioMin(d)>0?2:0,cr=d.creatine?1:0;return{cal,pro,tr,ca,cr,total:cal+pro+tr+ca+cr,t,fx,d}}
