@@ -10,10 +10,10 @@ import { findEx } from '../exercises.js';
 export function applyTheme() {
   const r = document.documentElement, th = S.settings.theme;
   const dark = th === 'dark' || (th === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
-  r.dataset.theme = dark ? 'dark' : 'light'; r.dataset.acc = S.settings.accent || 'violet';
+  r.dataset.theme = dark ? 'dark' : 'light'; r.dataset.acc = S.settings.accent || 'sage';
   const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = dark ? '#09090b' : '#f3f3f6';
 }
-const ACC = [['violet', '#7c5cff'], ['blue', '#3b82f6'], ['teal', '#14b8a6'], ['lime', '#a3e635'], ['orange', '#ff6b35'], ['pink', '#ec4899'], ['mono', '#9a9aa3']];
+const ACC = [['sage', '#6fbf9f'], ['violet', '#7c5cff'], ['blue', '#3b82f6'], ['teal', '#14b8a6'], ['lime', '#a3e635'], ['orange', '#ff6b35'], ['pink', '#ec4899'], ['mono', '#9a9aa3']];
 const row = (act, ic, c, t, s, r = `<span class="chev">${I.chev}</span>`, arg = '') => `<button class="li" data-act="${act}" data-arg="${arg}"><span class="ic c-${c}">${ic}</span><span><span class="t">${t}</span>${s ? `<span class="s">${s}</span>` : ''}</span>${r}</button>`;
 
 A.settings = () => {

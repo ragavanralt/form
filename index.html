@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="dark" data-acc="violet">
+<html lang="en" data-theme="dark" data-acc="sage">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -21,7 +21,7 @@
   // Paint the right theme before the app loads, so there is no flash.
   try { const s = JSON.parse(localStorage.getItem('form2:state') || '{}').settings || {}; const t = s.theme || 'dark';
     document.documentElement.dataset.theme = t === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : t;
-    document.documentElement.dataset.acc = s.accent || 'violet'; } catch (e) {}
+    document.documentElement.dataset.acc = s.accent || 'sage'; } catch (e) {}
 </script>
 </head>
 <body>

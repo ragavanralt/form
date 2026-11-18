@@ -13,6 +13,7 @@
   --bg:#f3f3f6;--s1:#ffffff;--s2:#f1f1f5;--s3:#e5e5ec;--line:rgba(10,10,20,.07);--line2:rgba(10,10,20,.12);
   --ink:#0d0d12;--ink2:#5b5b66;--ink3:#8e8e99;--shadow:0 10px 30px rgba(20,20,40,.1);--miss:#d4d4dc;color-scheme:light;
 }
+:root[data-acc="sage"]{--acc:#6fbf9f;--acc2:#a6e0c8;--accs:rgba(111,191,159,.16);--onacc:#0c1715}
 :root[data-acc="blue"]{--acc:#3b82f6;--acc2:#7fb0ff;--accs:rgba(59,130,246,.16)}
 :root[data-acc="lime"]{--acc:#a3e635;--acc2:#c8f27a;--accs:rgba(163,230,53,.16);--onacc:#0b0b0b}
 :root[data-acc="orange"]{--acc:#ff6b35;--acc2:#ff9b73;--accs:rgba(255,107,53,.16)}

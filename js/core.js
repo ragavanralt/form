@@ -42,7 +42,7 @@ export function freshState() {
     routines: [],
     customEx: [],
     foods: { fav: [], recent: [] },
-    settings: { theme: 'system', accent: 'violet', rest: 90, sound: true, haptics: true, share: { workouts: true, scores: true, prs: true, meals: false }, remind: { on: false, morning: '08:30', evening: '21:30', gym: '18:00' } },
+    settings: { theme: 'system', accent: 'sage', rest: 90, sound: true, haptics: true, share: { workouts: true, scores: true, prs: true, meals: false }, remind: { on: false, morning: '08:30', evening: '21:30', gym: '18:00' } },
     seen: { recap: '', ach: [], tour: false, feed: 0, level: 0 },
     days: {},
   };
