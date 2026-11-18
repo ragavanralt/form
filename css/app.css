@@ -411,7 +411,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 .avpick{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
 .avpick button{aspect-ratio:1;border-radius:50%;font-size:22px;display:grid;place-items:center;background:var(--s2);border:2px solid transparent}
 .avpick button.on{border-color:var(--acc)}
-.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;justify-items:center}
 .swatches button{width:36px;height:36px;border-radius:50%;border:3px solid var(--bg);box-shadow:0 0 0 1.5px var(--line2)}
 .swatches button.on{box-shadow:0 0 0 2px var(--ink)}
 
@@ -738,7 +738,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--ink2)}
 .skin .sw i{flex:1;border-radius:2px}.skin .sw i:nth-child(1){height:70%}.skin .sw i:nth-child(2){height:45%}.skin .sw i:nth-child(3){height:25%}
 .skin b{font-size:13px;font-weight:600;padding-left:2px}
 
-/* ===================== v7: Pace (Sora, dark/light, accents) ===================== */
+/* ===================== v7: Lifted (Sora, dark/light, accents) ===================== */
 :root,:root[data-theme="dark"]{
   --font:"Sora",-apple-system,BlinkMacSystemFont,sans-serif;--round:"Sora",-apple-system,sans-serif;
   --bg:#0b0c0f;--s1:#15171c;--s2:#1e2128;--s3:#2a2e37;--line:rgba(255,255,255,.06);--line2:rgba(255,255,255,.12);
@@ -748,14 +748,25 @@ input:focus,textarea:focus,select:focus{border-color:var(--ink2)}
   --win:#3dd68c;--hold:#ffc04a;--r:22px;color-scheme:dark;
 }
 :root[data-theme="light"]{--bg:#f3f5f8;--s1:#ffffff;--s2:#eceff4;--s3:#dde2ea;--line:rgba(14,17,22,.06);--line2:rgba(14,17,22,.12);--ink:#0e1116;--ink2:#5c6370;--ink3:#9aa1ad;--shadow:0 1px 2px rgba(14,17,22,.04),0 4px 16px rgba(14,17,22,.04);color-scheme:light}
-:root[data-acc="lime"],:root:not([data-acc]){--acc:#c6f432;--acc2:#dcff7a;--accs:rgba(198,244,50,.14);--onacc:#0b0c0f}
-:root[data-theme="light"][data-acc="lime"]{--acc:#7cb305;--acc2:#a3d63a;--accs:rgba(124,179,5,.12);--onacc:#fff}
+/* Accents. Violet is the default; the rest are picked in Settings > Appearance. */
+:root[data-acc="violet"],:root:not([data-acc]){--acc:#8b6cff;--acc2:#b4a1ff;--accs:rgba(139,108,255,.15);--onacc:#fff}
+:root[data-theme="light"][data-acc="violet"],:root[data-theme="light"]:not([data-acc]){--acc:#6d4dff;--acc2:#9a85ff;--accs:rgba(109,77,255,.12)}
+:root[data-acc="indigo"]{--acc:#5e6bff;--acc2:#97a0ff;--accs:rgba(94,107,255,.15);--onacc:#fff}
 :root[data-acc="blue"]{--acc:#3d8bff;--acc2:#86b6ff;--accs:rgba(61,139,255,.14);--onacc:#fff}
-:root[data-acc="violet"]{--acc:#8b6cff;--acc2:#b4a1ff;--accs:rgba(139,108,255,.14);--onacc:#fff}
+:root[data-acc="cyan"]{--acc:#22c8e6;--acc2:#7ee0f2;--accs:rgba(34,200,230,.14);--onacc:#04222a}
+:root[data-theme="light"][data-acc="cyan"]{--acc:#0891b2;--acc2:#38b6d6;--accs:rgba(8,145,178,.12);--onacc:#fff}
 :root[data-acc="mint"]{--acc:#2fd6a3;--acc2:#7eeac9;--accs:rgba(47,214,163,.14);--onacc:#06231a}
+:root[data-theme="light"][data-acc="mint"]{--acc:#0f9f78;--acc2:#3fc39d;--accs:rgba(15,159,120,.12);--onacc:#fff}
+:root[data-acc="lime"]{--acc:#c6f432;--acc2:#dcff7a;--accs:rgba(198,244,50,.14);--onacc:#0b0c0f}
+:root[data-theme="light"][data-acc="lime"]{--acc:#7cb305;--acc2:#a3d63a;--accs:rgba(124,179,5,.12);--onacc:#fff}
+:root[data-acc="gold"]{--acc:#ffc233;--acc2:#ffd978;--accs:rgba(255,194,51,.14);--onacc:#1a1300}
+:root[data-theme="light"][data-acc="gold"]{--acc:#d08c00;--acc2:#eab040;--accs:rgba(208,140,0,.12);--onacc:#fff}
 :root[data-acc="orange"]{--acc:#ff7a2f;--acc2:#ffaa75;--accs:rgba(255,122,47,.14);--onacc:#fff}
-:root[data-acc="pink"]{--acc:#ff4f9a;--acc2:#ff8fc0;--accs:rgba(255,79,154,.14);--onacc:#fff}
 :root[data-acc="red"]{--acc:#ff4545;--acc2:#ff8a8a;--accs:rgba(255,69,69,.14);--onacc:#fff}
+:root[data-acc="pink"]{--acc:#ff4f9a;--acc2:#ff8fc0;--accs:rgba(255,79,154,.14);--onacc:#fff}
+:root[data-acc="magenta"]{--acc:#d14dff;--acc2:#e38fff;--accs:rgba(209,77,255,.14);--onacc:#fff}
+:root[data-acc="mono"]{--acc:#f3f5f8;--acc2:#c9ced6;--accs:rgba(243,245,248,.12);--onacc:#0b0c0f}
+:root[data-theme="light"][data-acc="mono"]{--acc:#0e1116;--acc2:#3a3f4b;--accs:rgba(14,17,22,.08);--onacc:#fff}
 .c-dim{--c:var(--s3)}
 body,button,input,select,textarea{font-family:var(--font)}
 body{letter-spacing:-.01em}

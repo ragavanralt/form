@@ -1,6 +1,6 @@
-# Stack
+# Lifted
 
-Food, training and habits in one daily score. Every day is scored out of 100 from the things you choose to track. 70 is a win, 45 keeps your streak alive. Stack wins to climb levels, and race your friends in a weekly league.
+Food, training and habits in one daily score. Every day is scored out of 100 from the things you choose to track. 70 is a win, 45 keeps your streak alive. Win days to climb levels, and race your friends in a weekly league.
 
 Open the site on an iPhone in Safari, tap Share, then *Add to Home Screen*. It runs full screen from the home screen.
 

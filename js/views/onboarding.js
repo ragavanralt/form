@@ -24,7 +24,7 @@ function opt(act, arg, on, icon, c, title, sub) { return `<button class="opt c-$
 function draw() {
   const s = STEPS[OB.i], P = S.profile; let h = '';
   if (s === 'welcome') {
-    h = `<div class="hello">${rings([{ f: 0.82, c: 'food' }, { f: 0.64, c: 'train' }, { f: 0.9, c: 'move' }], 220, 18, 6)}<h1>Stack</h1><p>Food, training and habits. One daily score.</p></div>
+    h = `<div class="hello">${rings([{ f: 0.82, c: 'food' }, { f: 0.64, c: 'train' }, { f: 0.9, c: 'move' }], 220, 18, 6)}<h1>Lifted</h1><p>Food, training and habits. One daily score.</p></div>
     <div class="col" style="gap:14px"><div class="feat"><span class="fi">${I.cam}</span><span><b>Snap your food</b><span>AI counts it and shows its work.</span></span></div>
     <div class="feat"><span class="fi">${I.dumb}</span><span><b>Train smarter</b><span>Routines, PRs and 100+ exercises.</span></span></div>
     <div class="feat"><span class="fi">${I.users}</span><span><b>Better with friends</b><span>Nudge friends and race a weekly league.</span></span></div></div>
@@ -82,7 +82,7 @@ function draw() {
     <button class="btn sm ghost mt" data-act="obKey">Test key</button></div>
     <div class="foot"><button class="btn wide" data-act="obNext">${gemKey() ? 'Continue' : 'Continue'}</button><button class="btn ghost wide" data-act="obNextNoKey">Skip, I’ll log by hand</button></div>`;
   } else if (s === 'done') {
-    h = `<div class="hello" style="min-height:300px">${rings([{ f: 1, c: 'food' }, { f: 1, c: 'train' }, { f: 1, c: 'move' }], 220, 18, 6)}<h1>You’re set${P.name ? ', ' + esc(P.name.split(' ')[0]) : ''}.</h1><p>Every day gets a score out of 100. 70 is a win. Stack wins to build your streak and climb levels.</p></div>
+    h = `<div class="hello" style="min-height:300px">${rings([{ f: 1, c: 'food' }, { f: 1, c: 'train' }, { f: 1, c: 'move' }], 220, 18, 6)}<h1>You’re set${P.name ? ', ' + esc(P.name.split(' ')[0]) : ''}.</h1><p>Every day gets a score out of 100. 70 is a win. Win days to build your streak and climb levels.</p></div>
     <div class="col" style="gap:14px"><div class="feat"><span class="fi">${I.plus}</span><span><b>The + button logs anything</b><span>Snap a meal, start a workout, tick your stack.</span></span></div>
     <div class="feat"><span class="fi">${I.bolt}</span><span><b>The coach shows your next best move</b><span>It ranks what’s left by how many points it’s worth.</span></span></div>
     <div class="feat"><span class="fi">${I.calendar}</span><span><b>Close out each night</b><span>Get your recap${P.social === 'friends' ? ' and post it for your friends' : ''}.</span></span></div></div>
@@ -163,5 +163,5 @@ A.obV1 = () => {
 A.obRestore = async () => {
   const [f] = await pickFiles('application/json,.json'); if (!f) return;
   try { const j = JSON.parse(await f.text()); const st = j.form2 ? j.state : j.form && j.state ? migrateV1(j.state, n2 => { const x = findEx(n2); return x ? { m: x.p[0] } : null; }) : j.v === 2 ? j : null; if (!st) throw 0; replaceState(normalize(st)); S.onboarded = true; save(); $('#onboard').hidden = true; render(); toast('Backup restored'); }
-  catch (e) { toast('That file isn’t a Stack backup'); }
+  catch (e) { toast('That file isn’t a Lifted backup'); }
 };

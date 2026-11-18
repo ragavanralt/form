@@ -42,7 +42,7 @@ export function freshState() {
     routines: [],
     customEx: [],
     foods: { fav: [], recent: [] },
-    settings: { theme: 'dark', accent: 'lime', rest: 90, sound: true, haptics: true, share: { workouts: true, scores: true, prs: true, meals: false }, remind: { on: false, morning: '08:30', evening: '21:30', gym: '18:00' } },
+    settings: { theme: 'dark', accent: 'violet', accV: 2, rest: 90, sound: true, haptics: true, share: { workouts: true, scores: true, prs: true, meals: false }, remind: { on: false, morning: '08:30', evening: '21:30', gym: '18:00' } },
     seen: { recap: '', ach: [], tour: false, feed: 0, level: 0 },
     days: {},
   };
@@ -61,6 +61,7 @@ export function normalize(s) {
   o.settings = Object.assign(freshState().settings, ob(s.settings));
   o.settings.share = Object.assign(freshState().settings.share, ob(o.settings.share));
   o.settings.remind = Object.assign(freshState().settings.remind, ob(o.settings.remind));
+  if (!(ob(s.settings).accV >= 2)) { if (o.settings.accent === 'lime') o.settings.accent = 'violet'; o.settings.accV = 2; } // lime was the old default
   o.seen = Object.assign(freshState().seen, ob(s.seen));
   if (!Array.isArray(o.seen.ach)) o.seen.ach = [];
   o.foods = Object.assign({ fav: [], recent: [] }, ob(s.foods));
