@@ -65,7 +65,7 @@ A.inviteSheet = () => openSheet('invite', 'Add friends', `<div class="card tight
   <div class="row mt"><button class="btn grow" data-act="shareInvite">${I.share} Share link</button><button class="btn ghost" data-act="copyInvite" aria-label="Copy">${I.copy}</button></div>
   <div class="sec"><div class="lab">Or add by username</div><div class="row"><input id="addh" placeholder="username" autocapitalize="off" autocorrect="off"><button class="btn" data-act="addGo">Add</button></div><div id="adderr"></div></div>
   ${Social.outgoing.length ? `<div class="sec"><div class="lab">Waiting on</div><div class="list">${Social.outgoing.map(u => `<div class="li">${avatar(u.avatar, 'sm', u.display)}<span><span class="t">${name(u)}</span><span class="s">@${esc(u.handle)}</span></span><span class="pill">Pending</span></div>`).join('')}</div></div>` : ''}`);
-A.shareInvite = () => share(`Add me on Form, the fitness app I’m using. Let’s keep each other honest: ${link()}`, 'Join me on Form');
+A.shareInvite = () => share(`Add me on Realign, the fitness app I’m using. Let’s keep each other honest: ${link()}`, 'Join me on Realign');
 A.copyInvite = async () => { try { await navigator.clipboard.writeText(link()); toast('Link copied'); } catch (e) { toast('Copy failed'); } };
 A.addGo = async (a, btn) => { const hd = ($('#addh').value || '').trim().replace(/^@/, ''); if (!hd) return; btn.disabled = true; try { const r = await addFriend(hd); toast(r.status === 'accepted' ? 'You’re now friends' : 'Request sent'); await loadFriends(); A.inviteSheet(); render(); } catch (e) { btn.disabled = false; $('#adderr').innerHTML = `<div class="err mt">${esc(socialErr(e))}</div>`; } };
 export async function handleAddParam() {
@@ -214,7 +214,7 @@ A.closeDay = () => {
   render();
 };
 A.postDay = async k => { const sc = scoreOf(k); try { await post('day', k, '', { score: sc.total, streak: streak().streak, parts: sc.parts.filter(p => p.f >= 0.99).map(p => p.n).join(', ') }); toast('Posted'); haptic(); closeSheet(); loadFeed().catch(() => {}); } catch (e) { toast(socialErr(e)); } };
-A.shareDay = k => { const sc = scoreOf(k), st = streak(); share(`Form: ${sc.total}/100 today (${TIER_L[tierOf(sc.total)]}). ${st.streak} day streak 🔥`); };
+A.shareDay = k => { const sc = scoreOf(k), st = streak(); share(`Realign: ${sc.total}/100 today (${TIER_L[tierOf(sc.total)]}). ${st.streak} day streak 🔥`); };
 
 /* ---------- refresh + away sheet ---------- */
 export async function refresh() {

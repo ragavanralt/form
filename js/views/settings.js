@@ -33,10 +33,10 @@ A.settings = () => {
   </div></div></div>
   <div class="sec"><div class="lab">Data</div><div class="card tight"><div class="list">
     ${row('exportData', I.upload, 'habit', 'Back up', 'Download everything as a file')}
-    ${row('importData', I.copy, 'habit', 'Restore or import', 'A Form backup, or the old Form app')}
+    ${row('importData', I.copy, 'habit', 'Restore or import', 'A Realign backup, or the old Form app')}
     ${row('resetApp', I.trash, 'pro', 'Start over', 'Wipe this phone and run setup again', '')}
   </div></div></div>
-  <p class="faint tiny center mt">Form 2 · Your log lives on this phone. Friends see only what you share.<br><a class="link" href="classic/">Open Form Classic</a></p>`, { full: true });
+  <p class="faint tiny center mt">Realign · Your log lives on this phone. Friends see only what you share.<br><a class="link" href="classic/">Open Form Classic</a></p>`, { full: true });
 };
 
 /* ---------- profile ---------- */
@@ -98,19 +98,19 @@ A.sOut = async () => { await socialSignOut(); toast('Signed out'); A.setFriends(
 A.sDel = async () => { if (!confirm('Delete your friends profile, posts and reactions from the server? Your log on this phone stays.')) return; try { await socialDelete(); toast('Account deleted'); A.setFriends(); } catch (e) { toast(socialErr(e)); } };
 
 /* ---------- reminders (calendar file: iPhone web apps can't schedule notifications) ---------- */
-A.setRemind = () => { const R2 = S.settings.remind; openSheet('rem', 'Reminders', `<p class="muted small" style="margin-top:-6px">Web apps on iPhone can’t schedule their own alerts yet, so Form adds them to your Calendar instead. Download once, tap Add All.</p>
+A.setRemind = () => { const R2 = S.settings.remind; openSheet('rem', 'Reminders', `<p class="muted small" style="margin-top:-6px">Web apps on iPhone can’t schedule their own alerts yet, so Realign adds them to your Calendar instead. Download once, tap Add All.</p>
   <div class="card tight"><div class="list">${[['morning', 'Morning check-in', 'Plan the day and log breakfast'], ['gym', 'Training days', 'On days you have a workout'], ['evening', 'Close out', 'Log what’s left and see your score']].map(([k, t, s]) => `<div class="li noic"><span><span class="t">${t}</span><span class="s">${s}</span></span><input type="time" value="${R2[k]}" data-ch="remT" data-k="${k}" style="width:118px;padding:8px"></div>`).join('')}</div></div>
   <button class="btn wide mt2" data-act="remDl">${I.calendar} Add to Calendar</button><p class="faint small center">Change the times, then add again. Delete the old ones from Calendar.</p>`); };
 CH.remT = el => { S.settings.remind[el.dataset.k] = el.value; save(); };
 A.remDl = () => {
   const R2 = S.settings.remind, stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z'), t = todayK().replace(/-/g, ''), ev = [];
   const add = (id, hm, title, desc, rule) => { const m = /^(\d{1,2}):(\d{2})$/.exec(hm || ''); if (!m) return; ev.push(['BEGIN:VEVENT', `UID:form2-${id}-${t}@form`, 'DTSTAMP:' + stamp, `DTSTART:${t}T${m[1].padStart(2, '0')}${m[2]}00`, 'DURATION:PT10M', 'RRULE:' + rule, 'SUMMARY:' + title, 'DESCRIPTION:' + desc, 'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + title, 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT'].join('\r\n')); };
-  add('am', R2.morning, 'Form: plan your day', 'Open Form and check your next best move.', 'FREQ=DAILY');
-  add('pm', R2.evening, 'Form: close out the day', 'Log what’s left and see your score.', 'FREQ=DAILY');
+  add('am', R2.morning, 'Realign: plan your day', 'Open Realign and check your next best move.', 'FREQ=DAILY');
+  add('pm', R2.evening, 'Realign: close out the day', 'Log what’s left and see your score.', 'FREQ=DAILY');
   const days = Object.entries(S.plan).filter(([, v]) => v !== 'rest').map(([d]) => ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][d]);
-  if (days.length) add('gym', R2.gym, 'Form: training day', 'Your workout is planned for today.', 'FREQ=WEEKLY;BYDAY=' + days.join(','));
+  if (days.length) add('gym', R2.gym, 'Realign: training day', 'Your workout is planned for today.', 'FREQ=WEEKLY;BYDAY=' + days.join(','));
   S.settings.remind.on = true; save();
-  download('form-reminders.ics', ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Form//Reminders//EN', 'X-WR-CALNAME:Form', ...ev, 'END:VCALENDAR'].join('\r\n') + '\r\n', 'text/calendar');
+  download('realign-reminders.ics', ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Realign//Reminders//EN', 'X-WR-CALNAME:Realign', ...ev, 'END:VCALENDAR'].join('\r\n') + '\r\n', 'text/calendar');
 };
 
 /* ---------- workout settings ---------- */
@@ -122,10 +122,10 @@ A.trUnit = u => { S.profile.units = u; save(); A.setTraining(); render(); };
 A.trSound = () => { S.settings.sound = !S.settings.sound; save(); A.setTraining(); };
 
 /* ---------- data ---------- */
-A.exportData = () => { download(`form-backup-${todayK()}.json`, JSON.stringify({ form2: true, at: new Date().toISOString(), state: S })); toast('Backup downloaded'); };
+A.exportData = () => { download(`realign-backup-${todayK()}.json`, JSON.stringify({ form2: true, at: new Date().toISOString(), state: S })); toast('Backup downloaded'); };
 A.importData = () => openSheet('imp', 'Restore or import', `<div class="col">${hasV1() ? `<button class="rt" data-act="impV1"><span><b>Bring in data from Form Classic</b><span class="faint small" style="display:block">Found on this phone. Days, workouts, routines and foods.</span></span><span class="chev">${I.chev}</span></button>` : ''}<button class="rt" data-act="impFile"><span><b>Restore a backup file</b><span class="faint small" style="display:block">A Form 2 backup, or a Form Classic export (.json)</span></span><span class="chev">${I.chev}</span></button></div>`);
 function mergeDays(n) { let c = 0; Object.entries(n.days).forEach(([k, d]) => { const cur = S.days[k]; if (!cur || (!cur.meals.length && !cur.wo)) { S.days[k] = d; c++; } }); n.routines.forEach(r => { if (!S.routines.some(x => x.name === r.name)) S.routines.push(r); }); if (n.profile.start < S.profile.start) S.profile.start = n.profile.start; S.foods.fav = [...S.foods.fav, ...n.foods.fav].slice(0, 80); return c; }
 const fx = n2 => { const x = findEx(n2); return x ? { m: x.p[0] } : null; };
 A.impV1 = () => { const o = readV1(); if (!o) return; const n = migrateV1(o, fx); const c = mergeDays(n); touch(); closeSheet(); render(); toast(`Imported ${c} days from Form Classic`); };
-A.impFile = async () => { const [f] = await pickFiles('application/json,.json'); if (!f) return; try { const j = JSON.parse(await f.text()); if (j.form2 && j.state) { if (!confirm('Replace everything on this phone with this backup?')) return; replaceState(j.state); S.onboarded = true; save(); } else if (j.form && j.state) { const c = mergeDays(migrateV1(j.state, fx)); touch(); toast(`Imported ${c} days`); } else throw 0; closeSheet(); render(); } catch (e) { toast('That isn’t a Form backup'); } };
+A.impFile = async () => { const [f] = await pickFiles('application/json,.json'); if (!f) return; try { const j = JSON.parse(await f.text()); if (j.form2 && j.state) { if (!confirm('Replace everything on this phone with this backup?')) return; replaceState(j.state); S.onboarded = true; save(); } else if (j.form && j.state) { const c = mergeDays(migrateV1(j.state, fx)); touch(); toast(`Imported ${c} days`); } else throw 0; closeSheet(); render(); } catch (e) { toast('That isn’t a Realign backup'); } };
 A.resetApp = () => { if (!confirm('Erase everything on this phone and start setup again? Download a backup first if you want to keep it.')) return; localStorage.removeItem(KEY); location.reload(); };
