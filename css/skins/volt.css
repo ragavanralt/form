@@ -1,0 +1,88 @@
+@import url("https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..900;1,62..125,700..900&display=swap");
+/* ===================== v6: gym core ===================== */
+/* Black, white and one volt. Archivo condensed for the loud moments (big numbers, titles), Archivo for everything else.
+   Fuel is hot orange, Train is volt, Move is electric blue. Sharp corners, heavy weights, nothing soft. */
+:root,:root[data-theme="dark"]{
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",sans-serif;--display:"Archivo",-apple-system,sans-serif;--label:"Archivo",-apple-system,sans-serif;
+  --bg:#080808;--s1:#131313;--s2:#1d1d1d;--s3:#2b2b2b;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.16);
+  --ink:#f5f5f2;--ink2:#a3a3a0;--ink3:#686866;
+  --volt:#d4ff3a;--fuel:#ff5a1f;--fuel2:#ff8a5c;--trn:#d4ff3a;--trn2:#e7ff8a;--mov:#3db6ff;--mov2:#86d2ff;
+  --carb:#ffc23d;--habit:#b28cff;--body:#ffc23d;--win:var(--volt);--hold:#ffc23d;
+  --acc:var(--volt);--acc2:#e7ff8a;--accs:rgba(212,255,58,.12);--onacc:#0a0a0a;--r:6px;color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#f1f1ee;--s1:#ffffff;--s2:#e7e7e3;--s3:#d5d5d0;--line:rgba(0,0,0,.08);--line2:rgba(0,0,0,.18);
+  --ink:#0b0b0b;--ink2:#5c5c59;--ink3:#9a9a96;
+  --volt:#a8d400;--trn:#8fbf00;--trn2:#b5dd3c;--fuel:#f04a12;--mov:#1592e6;--win:#7fb000;--acc:#0b0b0b;--accs:rgba(0,0,0,.06);--onacc:#fff;color-scheme:light;
+}
+:root[data-acc]{--acc:var(--volt)}
+:root[data-theme="light"][data-acc]{--acc:#0b0b0b}
+body{font-family:var(--font);letter-spacing:-.01em}
+.lrow .lv b,.meal .nm,.next b{font-weight:600}
+/* loud type */
+.top h1,.sect h2,.shead h3,.hello h1,.ob h1,.levelup .big,.post .body2 h4,.vs .side b,
+.lg-score,.n,.vv,.tile b,.stat b,.kcal .big,.sumrow b,.lbr .pts,.scorebar .sc b,.hcard .vv,.mini b,.wd b,.meal .kc{font-family:var(--display,var(--font));font-stretch:var(--dstretch,62%);font-weight:800;text-transform:uppercase;letter-spacing:-.01em}
+.top h1{font-size:46px;line-height:.95}
+.sect h2{font-size:30px;line-height:1}
+.shead h3{font-size:30px}
+.lg-score{font-size:128px;line-height:.8;font-weight:900}
+.hcard .vv,.tile b{font-size:40px;line-height:.9}
+.wd b{font-size:24px}
+.meal .kc{font-size:22px;font-weight:700}
+.post .body2 h4{font-size:26px}
+/* labels */
+.kicker,.top .sub,.tile small,.hcard .hh,.mhead,.sec>.lab,.field>span,.set.h,.chd .r,.lbr span,.post .ph span,.chip,.seg button,.pill,.act,.hb,.tab,.lg-foot,.stamp,.wd span,.lrow .ln,.btn{font-family:var(--label,var(--font));font-stretch:var(--lstretch,100%);font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.kicker,.top .sub,.tile small,.hcard .hh{font-size:11px;color:var(--ink3)}
+.top{border-bottom:0;padding-bottom:6px}
+.sect{border-bottom:0}
+/* surfaces */
+.card,.hcard,.tile,.stat,.next,.rt,.lgo,.ac,.post,.sx,.item,.exhero,.opt,.mini,.ledger,.wd{background:var(--s1);border:0;border-radius:var(--r)}
+.ledger{overflow:hidden}
+.lg-top{border-bottom:1px solid var(--line);padding:18px 18px 16px}
+.lrow{border-bottom:1px solid var(--line)}
+.lrow .ln{font-stretch:100%;font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:15px}
+.lrow .lv b{font-weight:700}
+.tape{height:10px;background:var(--s3);-webkit-mask:repeating-linear-gradient(90deg,#000 0 calc(5% - 2px),transparent calc(5% - 2px) 5%);mask:repeating-linear-gradient(90deg,#000 0 calc(5% - 2px),transparent calc(5% - 2px) 5%)}
+.stamp{transform:none;border:0;background:var(--s3);color:var(--ink);border-radius:3px;padding:6px 10px;font-size:13px;font-weight:900;font-family:var(--display,var(--font));font-stretch:var(--dstretch,62%);letter-spacing:.04em}
+.stamp.win{background:var(--volt);color:#0a0a0a}.stamp.hold{background:var(--hold);color:#0a0a0a}.stamp.miss{background:var(--s3);color:var(--ink2)}
+.lg-foot{color:var(--ink);font-size:12px}
+.hb{border:0;background:var(--s2);border-radius:4px}
+.hb.on{background:var(--volt);color:#0a0a0a}.hb.on svg{color:#0a0a0a}
+/* actions */
+.btn{border-radius:4px;background:var(--volt);color:#0a0a0a;font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:14px}
+:root[data-theme="light"] .btn{background:#0b0b0b;color:#fff}
+.btn.ghost{background:var(--s2);border:0;color:var(--ink)}
+.iconbtn{border:0;background:var(--s1);border-radius:4px}
+.chip{border:0;background:var(--s1);border-radius:4px}
+.chip.on{background:var(--volt);color:#0a0a0a}
+.seg{border:0;background:var(--s1);border-radius:4px;padding:3px}
+.seg button{border-radius:3px}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.act{border:0;background:var(--s2);border-radius:4px}
+.act.hot{background:var(--volt);color:#0a0a0a}.act.hot svg{color:#0a0a0a}
+:root[data-theme="light"] .act.hot{background:#0b0b0b;color:#fff}:root[data-theme="light"] .act.hot svg{color:#fff}
+.next .ic{background:var(--volt);color:#0a0a0a;border-radius:4px}
+.toggle.on{background:var(--volt)}
+.plus{background:var(--volt);color:#0a0a0a;border-radius:4px;width:48px;height:42px}
+:root[data-theme="light"] .plus{background:#0b0b0b;color:#fff}
+#tabbar{border-top:1px solid var(--line)}
+.tab{font-size:9.5px}
+.tab.on{color:var(--ink)}
+.wd.today{background:var(--volt);color:#0a0a0a}.wd.today b,.wd.today span{color:#0a0a0a}
+:root[data-theme="light"] .wd.today{background:#0b0b0b;color:#fff}:root[data-theme="light"] .wd.today b,:root[data-theme="light"] .wd.today span{color:#fff}
+.pill.win{background:var(--volt);color:#0a0a0a}
+.ac.got .md{background:var(--volt);color:#0a0a0a}
+.body .m.hi,.body .m.h3{fill:var(--volt)}
+.body .m.lo,.body .m.h2{fill:color-mix(in srgb,var(--volt) 55%,var(--s3))}
+.body .m.h1{fill:color-mix(in srgb,var(--volt) 25%,var(--s3))}
+:root[data-theme="light"] .body .m.hi,:root[data-theme="light"] .body .m.h3{fill:var(--fuel)}
+.hello{border:0}
+.hello::before{content:"Pace / Train · Fuel · Move";font-family:var(--label);font-weight:700;letter-spacing:.08em}
+.hello h1{font-size:96px;line-height:.85}
+.opt.on{border-color:var(--volt)}
+.opt.on .ck2{background:var(--volt);border-color:var(--volt);color:#0a0a0a}
+.obbar .track i{background:var(--volt)}
+.rx.on{background:var(--volt);color:#0a0a0a}
+input[type=text],input[type=number],input[type=search],input[type=password],input[type=time],input[type=date],input:not([type]),textarea,select{border-radius:4px;border:1px solid var(--line2);background:var(--s1)}
+.sheet{border-radius:10px 10px 0 0}
+.x{border:0;background:var(--s2);border-radius:4px}

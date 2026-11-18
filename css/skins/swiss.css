@@ -1,0 +1,15 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;700;800;900&display=swap");
+@import url("volt.css");
+/* Swiss: stark and precise. White, black, one red, tight grotesk, everything on a grid. */
+:root,:root[data-theme="dark"],:root[data-theme="light"]{
+  --display:"Inter Tight",sans-serif;--dstretch:100%;--label:"Inter Tight",sans-serif;
+  --bg:#ffffff;--s1:#ffffff;--s2:#f0f0f0;--s3:#e0e0e0;--line:rgba(0,0,0,.12);--line2:#000;
+  --ink:#000;--ink2:#444;--ink3:#8a8a8a;--volt:#ff2a00;--trn:#000;--fuel:#ff2a00;--mov:#8a8a8a;--win:#ff2a00;--acc:#ff2a00;--r:0;color-scheme:light;
+}
+.lg-score,.hcard .vv,.tile b,.top h1,.sect h2{text-transform:none;letter-spacing:-.06em;font-weight:900}
+.lg-score{font-size:150px;line-height:.78}
+.top h1{font-size:52px}
+.ledger,.hcard,.tile,.card,.wd{border:1px solid #000!important;border-radius:0!important;background:#fff}
+.btn,.plus,.act.hot,.chip.on,.hb.on,.next .ic,.wd.today,.stamp.win{background:#ff2a00!important;color:#fff!important;border-radius:0!important}
+.act.hot svg,.wd.today b,.wd.today span{color:#fff!important}
+.kicker,.top .sub,.tile small,.hcard .hh{color:#000;font-weight:700;letter-spacing:.02em}

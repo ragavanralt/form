@@ -1,0 +1,12 @@
+@import url("https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700;900&family=Barlow+Condensed:wght@600;700&display=swap");
+@import url("volt.css");
+/* Iron: industrial gym. Concrete, safety yellow, stencil numbers, hazard tape. */
+:root,:root[data-theme="dark"],:root[data-theme="light"]{
+  --display:"Big Shoulders Stencil Display",sans-serif;--dstretch:100%;--label:"Barlow Condensed",sans-serif;
+  --bg:#1a1a18;--s1:#242421;--s2:#2f2f2b;--s3:#3d3d38;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.16);
+  --ink:#efede6;--ink2:#a9a69c;--ink3:#77746b;--volt:#ffd400;--trn:#ffd400;--fuel:#ff6a13;--mov:#9fb3c8;--win:#ffd400;--acc:#ffd400;color-scheme:dark;
+}
+.ledger{border-top:8px solid transparent;border-image:repeating-linear-gradient(-45deg,#ffd400 0 12px,#1a1a18 12px 24px) 8}
+.lg-score{font-size:132px}
+.tape{height:12px}
+.kicker,.top .sub,.tile small,.hcard .hh{letter-spacing:.12em;font-size:12px}

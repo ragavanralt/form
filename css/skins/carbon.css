@@ -1,0 +1,12 @@
+@import url("https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;800&family=Saira:wght@600&display=swap");
+@import url("volt.css");
+/* Carbon: race-day. Carbon-fibre greys and racing red, italic speed type. */
+:root,:root[data-theme="dark"],:root[data-theme="light"]{
+  --display:"Saira Condensed",sans-serif;--dstretch:100%;--label:"Saira",sans-serif;
+  --bg:#0d0d0e;--s1:#18181a;--s2:#222225;--s3:#323236;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.16);
+  --ink:#f2f2f2;--ink2:#a0a0a4;--ink3:#66666b;--volt:#e10600;--trn:#e10600;--fuel:#ff8a00;--mov:#c9ccd1;--win:#e10600;--acc:#e10600;color-scheme:dark;
+}
+.ledger,.hcard,.tile{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.018) 0 2px,transparent 2px 4px),repeating-linear-gradient(-45deg,rgba(255,255,255,.018) 0 2px,transparent 2px 4px)}
+.lg-score,.hcard .vv,.tile b,.top h1,.sect h2{font-style:italic;font-weight:800}
+.btn,.plus,.act.hot,.chip.on,.hb.on,.next .ic,.wd.today,.stamp.win{background:#e10600!important;color:#fff!important}
+.act.hot svg,.wd.today b,.wd.today span{color:#fff!important}

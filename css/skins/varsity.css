@@ -1,0 +1,14 @@
+@import url("https://fonts.googleapis.com/css2?family=Graduate&family=Oswald:wght@500;600&display=swap");
+@import url("volt.css");
+/* Varsity: team locker room. Cream, navy and red, collegiate numbers. */
+:root,:root[data-theme="dark"],:root[data-theme="light"]{
+  --display:"Graduate",serif;--dstretch:100%;--label:"Oswald",sans-serif;
+  --bg:#f1e9da;--s1:#faf5ea;--s2:#e8dec9;--s3:#d6c9ae;--line:rgba(19,37,74,.14);--line2:rgba(19,37,74,.28);
+  --ink:#13254a;--ink2:#4a5677;--ink3:#8a8f9e;--volt:#c8102e;--trn:#13254a;--fuel:#c8102e;--mov:#d69a1c;--win:#c8102e;--acc:#c8102e;color-scheme:light;
+}
+.lg-score{font-size:112px;font-weight:400;-webkit-text-stroke:0}
+.lg-score,.hcard .vv,.tile b,.top h1,.sect h2{font-weight:400}
+.btn,.plus,.act.hot,.chip.on,.hb.on,.next .ic,.wd.today,.stamp.win{background:#c8102e!important;color:#fff!important}
+.act.hot svg,.wd.today b,.wd.today span{color:#fff!important}
+.ledger{border:3px double var(--ink)}
+.lg-top{border-bottom:3px double var(--ink)}
