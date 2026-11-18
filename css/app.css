@@ -857,3 +857,12 @@ body{letter-spacing:-.01em}
 .hcard .hh{color:var(--ink2);font-size:13px;font-weight:600;text-transform:none;letter-spacing:0}
 .hcard .vv{font-size:26px}
 .hcard .vv small{font-size:13px;color:var(--ink3);font-weight:500;margin-left:3px;text-transform:none;letter-spacing:0}
+
+/* Avatars: initial on a gradient (default) or a Thumbs character. */
+.av.mono{background:radial-gradient(120% 90% at 28% 18%,rgba(255,255,255,.38),transparent 55%),linear-gradient(140deg,var(--g1),var(--g2))!important;container-type:size;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.av.mono b{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--font);font-weight:700;font-size:48cqw;line-height:1;letter-spacing:-.02em;text-shadow:0 1px 2px rgba(0,0,0,.18)}
+.av.th{background:#1e2128!important}.av.th img{inset:0;width:100%;height:100%}
+.avpick button .av{position:absolute;inset:0;width:100%;height:100%}
+.avpick button{background:transparent!important}
+.avpick button.on{border-color:var(--acc)}
+.avpick.g8{grid-template-columns:repeat(8,minmax(0,1fr));gap:8px}

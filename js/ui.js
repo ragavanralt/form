@@ -56,13 +56,22 @@ export const I = {
 };
 
 /* ---------- avatars ---------- */
-export const AV_SEEDS = ['fox', 'bear', 'panda', 'koala', 'tiger', 'rabbit', 'cat', 'dog', 'owl', 'penguin', 'frog', 'monkey', 'hamster', 'wolf', 'pig', 'lion', 'mouse', 'cow'];
-export const AV_EMO = AV_SEEDS;
-export const AV_BG = ['#e8e4dc', '#dfe9e2', '#e1e6ef', '#efe2dc', '#e9e1ec', '#efe9d8', '#2a2a2d'];
-// Avatars are animal faces from Microsoft Fluent Emoji (MIT), stored in assets/avatars.
-export const avUrl = name => 'assets/avatars/' + (AV_SEEDS.includes(name) ? name : AV_SEEDS[[...String(name || 'fox')].reduce((x, c) => x + c.charCodeAt(0), 0) % AV_SEEDS.length]) + '.svg';
+// Avatars: your initial on a gradient by default, or a "Thumbs" character (DiceBear, CC0) in the app palette.
+export const AV_IDS = ['violet1', 'violet2', 'mint1', 'mint2', 'gold1', 'gold2', 'coral1', 'coral2', 'blue1', 'blue2', 'pink1', 'pink2', 'lime1', 'lime2', 'cyan1', 'cyan2', 'white1', 'white2'];
+export const AV_GRAD = [['#a593ff', '#5b3dff'], ['#7cc0ff', '#3d5bff'], ['#6ee7c8', '#0f9f78'], ['#ffd166', '#ff8a3d'], ['#ffa08a', '#ff3d6e'], ['#ff9ad0', '#c53dff'], ['#e2ff7a', '#4fbf3a'], ['#9aa3b5', '#3a4150']];
+const hashOf = s => [...String(s || '')].reduce((x, c) => (x * 31 + c.codePointAt(0)) >>> 0, 7);
+const initial = n => (Array.from(String(n || '').trim())[0] || '?').toUpperCase();
 export function avatar(a = {}, size = 'md', name = '') {
-  return `<span class="av ${size}" style="--avbg:${AV_BG[(a.bg ?? 0) % AV_BG.length]}"><img src="${avUrl(a.s || a.e || name)}" alt="" loading="lazy"></span>`;
+  a = a || {};
+  if (AV_IDS.includes(a.t)) return `<span class="av ${size} th"><img src="assets/avatars/${a.t}.svg" alt="" loading="lazy"></span>`;
+  const g = AV_GRAD[(Number.isInteger(a.g) ? a.g : hashOf(name)) % AV_GRAD.length];
+  return `<span class="av ${size} mono" style="--g1:${g[0]};--g2:${g[1]}"><b>${esc(initial(name))}</b></span>`;
+}
+// One picker for Profile and the friends sign-up. actT/actG are the action names to call.
+export function avPicker(a, name, actT, actG) {
+  const mono = !AV_IDS.includes(a.t);
+  return `<div class="lab faint small b mt2">YOUR INITIAL</div><div class="avpick g8 mt">${AV_GRAD.map((g, i) => `<button class="${mono && a.g === i ? 'on' : ''}" data-act="${actG}" data-arg="${i}" aria-label="Initial, colour ${i + 1}">${avatar({ g: i }, '', name)}</button>`).join('')}</div>
+  <div class="lab faint small b mt2">OR A CHARACTER</div><div class="avpick mt">${AV_IDS.map(id => `<button class="${a.t === id ? 'on' : ''}" data-act="${actT}" data-arg="${id}" aria-label="${id}">${avatar({ t: id })}</button>`).join('')}</div>`;
 }
 
 /* ---------- sheet ---------- */

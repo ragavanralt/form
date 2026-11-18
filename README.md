@@ -35,5 +35,5 @@ No build step. Serve the folder (`npm start`, then open http://localhost:8080) a
 
 ## Credits
 
-- Avatars: Microsoft Fluent Emoji (MIT), in assets/avatars.
+- Avatars: “Thumbs” by DiceBear (CC0 1.0), recoloured, in assets/avatars. The default avatar is your initial on a gradient.
 - Muscle maps: polygon data adapted from react-body-highlighter by GV79 (MIT).

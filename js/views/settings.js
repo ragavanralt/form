@@ -1,7 +1,7 @@
 // Settings: profile, modules, targets, appearance, AI, friends and privacy, reminders, data.
 import { S, save, touch, render, replaceState, hasV1, readV1, KEY } from '../store.js';
 import { MODULES, ACTIVITY, suggestTargets, weights, PART, esc, fmt, nint, num, todayK, migrateV1, normalize, freshState, addDays, pdk, totals, score } from '../core.js';
-import { A, CH, I, $, openSheet, setSheet, closeSheet, toast, toggle, download, pickFiles, avatar, AV_EMO, AV_BG, avUrl } from '../ui.js';
+import { A, CH, I, $, openSheet, setSheet, closeSheet, toast, toggle, download, pickFiles, avatar, avPicker } from '../ui.js';
 import { aiLabel, gemKey, setGemKey, testKey, errMsg } from '../ai.js';
 import { Social, socialErr } from '../social.js';
 import { socialSignOut, socialDelete, syncStats } from './friends.js';
@@ -43,16 +43,16 @@ A.settings = () => {
 
 /* ---------- profile ---------- */
 A.setProfile = () => {
-  const P = S.profile, a = P.avatar = P.avatar || { e: AV_EMO[0], bg: 0 };
-  openSheet('prof', 'Profile', `<div class="center">${avatar(a, 'lg', P.name)}</div><div class="avpick mt">${AV_EMO.map(e => `<button class="${a.e === e ? 'on' : ''}" data-act="pAv" data-arg="${e}" style="--avbg:${AV_BG[a.bg % AV_BG.length]}"><img src="${avUrl(e)}" alt="" loading="lazy"></button>`).join('')}</div><div class="swatches mt" style="justify-content:center">${AV_BG.map((b, i) => `<button style="background:${b}" class="${a.bg === i ? 'on' : ''}" data-act="pBg" data-arg="${i}" aria-label="Colour"></button>`).join('')}</div>
+  const P = S.profile, a = P.avatar = P.avatar || {};
+  openSheet('prof', 'Profile', `<div class="center">${avatar(a, 'lg', P.name)}</div>${avPicker(a, P.name, 'pAv', 'pBg')}
   <div class="field mt2"><span>Name</span><input value="${esc(P.name)}" data-ch="pName"></div>
   <div class="field mt"><span>Goal</span><div class="seg">${[['cut', 'Lose fat'], ['maintain', 'Maintain'], ['bulk', 'Gain']].map(([k, l]) => `<button class="${P.goal === k ? 'on' : ''}" data-act="pGoal" data-arg="${k}">${l}</button>`).join('')}</div></div>
   <div class="g3 mt"><label class="field"><span>Age</span><input type="number" value="${P.age || ''}" data-ch="pNum" data-k="age"></label><label class="field"><span>Height cm</span><input type="number" value="${P.heightCm || ''}" data-ch="pNum" data-k="heightCm"></label><label class="field"><span>Weight kg</span><input type="number" step="0.1" value="${P.weightKg || ''}" data-ch="pNum" data-k="weightKg"></label></div>
   <div class="field mt"><span>Activity</span><select data-ch="pAct">${ACTIVITY.map(([k, l]) => `<option value="${k}" ${P.activity === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
   <button class="btn wide mt2" data-act="settings">Done</button>`);
 };
-A.pAv = e => { S.profile.avatar.e = e; save(); A.setProfile(); syncStats(true); };
-A.pBg = i => { S.profile.avatar.bg = +i; save(); A.setProfile(); syncStats(true); };
+A.pAv = t => { S.profile.avatar = { t }; save(); render(); A.setProfile(); syncStats(true); };
+A.pBg = i => { S.profile.avatar = { g: +i }; save(); render(); A.setProfile(); syncStats(true); };
 A.pGoal = g => { S.profile.goal = g; touch(); A.setProfile(); render(); };
 CH.pName = el => { S.profile.name = el.value; save(); };
 CH.pNum = el => { S.profile[el.dataset.k] = num(el.value); save(); };

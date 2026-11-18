@@ -1,7 +1,7 @@
 // Friends: account, weekly league, head-to-head, feed with reactions, nudges/flexes, "while you were away", day recap.
 import { S, R, get, day, touch, render, scoreOf, streak, level, week, hist, afterSave, save } from '../store.js';
 import { todayK, addDays, wkStart, pdk, esc, fmt, num, tierOf, TIER_L, WIN, rankOf, liftDone, achievements } from '../core.js';
-import { A, CH, I, $, openSheet, setSheet, closeSheet, toast, haptic, avatar, ago, share, confetti, AV_EMO, AV_BG, avUrl } from '../ui.js';
+import { A, CH, I, $, openSheet, setSheet, closeSheet, toast, haptic, avatar, ago, share, confetti, avPicker } from '../ui.js';
 import { Social, ping, signup, login, logout, updateMe, loadFriends, addFriend, respond, loadFeed, post, react, nudge, loadInbox, inboxSeen, socialErr, deleteMe } from '../social.js';
 import { findEx, MUSCLES } from '../exercises.js';
 
@@ -36,14 +36,14 @@ function joinHTML() {
     <div class="col mt2"><button class="btn wide" data-act="joinSheet">Create your profile</button><button class="btn ghost wide" data-act="loginSheet">I already have one</button></div></div>`;
 }
 A.joinSheet = () => {
-  const a = S.profile.avatar || { e: AV_EMO[0], bg: 0 }; S.profile.avatar = a;
-  openSheet('join', 'Your profile', `<div class="center">${avatar(a, 'lg')}</div><div class="avpick mt">${AV_EMO.map(e => `<button class="${a.e === e ? 'on' : ''}" data-act="avE" data-arg="${e}" style="--avbg:${AV_BG[a.bg % AV_BG.length]}"><img src="${avUrl(e)}" alt="" loading="lazy"></button>`).join('')}</div><div class="swatches mt" style="justify-content:center">${AV_BG.map((b, i) => `<button style="background:${b}" class="${a.bg === i ? 'on' : ''}" data-act="avB" data-arg="${i}" aria-label="Colour ${i + 1}"></button>`).join('')}</div>
+  const a = S.profile.avatar || {}; S.profile.avatar = a;
+  openSheet('join', 'Your profile', `<div class="center">${avatar(a, 'lg', ($('#jdn') || {}).value || S.profile.name)}</div>${avPicker(a, S.profile.name, 'avE', 'avB')}
   <div class="field mt2"><span>Display name</span><input id="jdn" value="${esc(S.profile.name)}" placeholder="Alex"></div>
   <div class="field mt"><span>Username</span><input id="jh" placeholder="alex_lifts" autocapitalize="off" autocorrect="off" value="${esc((S.profile.name || '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 16))}"></div>
   <p class="faint small">Friends add you by username. You’ll get a sign-in code for your other devices.</p><div id="jerr"></div><button class="btn wide mt" data-act="joinGo">Create profile</button>`);
 };
-A.avE = e => { S.profile.avatar.e = e; const v = [$('#jdn') && $('#jdn').value, $('#jh') && $('#jh').value]; A.joinSheet(); if (v[0] != null) { $('#jdn').value = v[0]; $('#jh').value = v[1]; } };
-A.avB = i => { S.profile.avatar.bg = +i; const v = [$('#jdn').value, $('#jh').value]; A.joinSheet(); $('#jdn').value = v[0]; $('#jh').value = v[1]; };
+A.avE = t => { S.profile.avatar = { t }; const v = [$('#jdn') && $('#jdn').value, $('#jh') && $('#jh').value]; A.joinSheet(); if (v[0] != null) { $('#jdn').value = v[0]; $('#jh').value = v[1]; } };
+A.avB = i => { S.profile.avatar = { g: +i }; const v = [$('#jdn') && $('#jdn').value, $('#jh') && $('#jh').value]; A.joinSheet(); if (v[0] != null) { $('#jdn').value = v[0]; $('#jh').value = v[1]; } };
 A.joinGo = async (a, btn) => {
   const dn = $('#jdn').value.trim(), hd = $('#jh').value.trim().toLowerCase();
   if (!/^[a-z0-9_]{3,20}$/.test(hd)) { $('#jerr').innerHTML = `<div class="err">${socialErr({ code: 'handle_format' })}</div>`; return; }
