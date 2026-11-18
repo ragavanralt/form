@@ -1,0 +1,11 @@
+{
+  "name": "form",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Form: food, training and habits in one daily score. Static site, no build step.",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node test/core.test.js && node test/sql.test.js"
+  }
+}
