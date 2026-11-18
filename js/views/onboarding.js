@@ -24,10 +24,10 @@ function opt(act, arg, on, icon, c, title, sub) { return `<button class="opt c-$
 function draw() {
   const s = STEPS[OB.i], P = S.profile; let h = '';
   if (s === 'welcome') {
-    h = `<div class="hello">${rings([{ f: 0.82, c: 'food' }, { f: 0.64, c: 'train' }, { f: 0.9, c: 'move' }], 220, 18, 6)}<h1>Pace</h1><p>Food, training and habits in one daily score. Simple enough to open every day.</p></div>
-    <div class="col" style="gap:14px"><div class="feat"><span class="fi">${I.cam}</span><span><b>Snap your food</b><span>AI finds every item, sizes the portion and shows you exactly what it saw.</span></span></div>
-    <div class="feat"><span class="fi">${I.dumb}</span><span><b>Train smarter</b><span>Routines, PRs, progressive overload hints and muscle maps for 100+ exercises.</span></span></div>
-    <div class="feat"><span class="fi">${I.users}</span><span><b>Better with friends</b><span>See when they train, nudge them, and race a weekly league. Or keep it all private.</span></span></div></div>
+    h = `<div class="hello">${rings([{ f: 0.82, c: 'food' }, { f: 0.64, c: 'train' }, { f: 0.9, c: 'move' }], 220, 18, 6)}<h1>Pace</h1><p>Food, training and habits. One daily score.</p></div>
+    <div class="col" style="gap:14px"><div class="feat"><span class="fi">${I.cam}</span><span><b>Snap your food</b><span>AI counts it and shows its work.</span></span></div>
+    <div class="feat"><span class="fi">${I.dumb}</span><span><b>Train smarter</b><span>Routines, PRs and 100+ exercises.</span></span></div>
+    <div class="feat"><span class="fi">${I.users}</span><span><b>Better with friends</b><span>Nudge friends and race a weekly league.</span></span></div></div>
     <div class="foot"><button class="btn wide" data-act="obNext">Get started</button>${hasV1() ? `<button class="btn ghost wide" data-act="obV1">Bring in my data from the old Form</button>` : ''}<button class="btn line wide" data-act="obRestore">Restore a backup</button></div>`;
   } else if (s === 'name') {
     h = `${bar()}<h1>What should we call you?</h1><p class="lead">Just a first name is fine.</p><input id="obn" value="${esc(P.name)}" placeholder="Your name" style="font-size:22px;font-weight:600" autocomplete="given-name">

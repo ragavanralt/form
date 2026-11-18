@@ -17,7 +17,7 @@ export function vFriends() {
   const inb = Social.inbox || {};
   const req = (inb.requests || Social.incoming || []);
   if (req.length) h += `<div class="card"><div class="chd"><h3>Friend requests</h3></div><div class="list">${req.map(u => `<div class="li">${avatar(u.avatar, 'md', u.display)}<span><span class="t">${name(u)}</span><span class="s">@${esc(u.handle)}</span></span><span class="row" style="gap:6px"><button class="btn xs" data-act="frAccept" data-arg="${esc(u.handle)}">Accept</button><button class="btn xs ghost" data-act="frDecline" data-arg="${esc(u.handle)}">${I.x}</button></span></div>`).join('')}</div></div>`;
-  if (!Social.friends.length && !req.length) h += `<div class="card empty">${I.users}<b>Add your first friend</b><span class="small">Share your invite link. When they join, you’ll see each other’s workouts, nudge each other and race the weekly league.</span><button class="btn sm" data-act="inviteSheet">Invite friends</button></div>`;
+  if (!Social.friends.length && !req.length) h += `<div class="card empty">${I.users}<b>Add your first friend</b><button class="btn sm" data-act="inviteSheet">Invite friends</button></div>`;
   else h += vsCard() + leagueCard();
   h += `<div class="seg">${[['feed', 'Feed'], ['inbox', 'Inbox' + (newCount() ? ' · ' + newCount() : '')]].map(([k, n]) => `<button class="${F.tab === k ? 'on' : ''}" data-act="frTab" data-arg="${k}">${n}</button>`).join('')}</div>`;
   h += F.tab === 'feed' ? feedHTML() : inboxHTML();
@@ -28,11 +28,11 @@ const newCount = () => { const i = Social.inbox || {}; return (i.nudges || []).f
 function joinHTML() {
   if (Social.status === 'nosetup') return `<div class="card"><div class="empty">${I.users}<b>Friends server not set up yet</b><span class="small">Everything else works on your own. To turn on friends, run <code>supabase/form-schema.sql</code> once in your Supabase project (SQL Editor → Run). It takes about a minute.</span><button class="btn sm ghost" data-act="refreshSocial">Check again</button></div></div>`;
   if (Social.status === 'down') return `<div class="card"><div class="empty">${I.users}<b>Can’t reach the friends server</b><span class="small">You might be offline. Everything you log is saved on this phone.</span><button class="btn sm ghost" data-act="refreshSocial">Try again</button></div></div>`;
-  return `<div class="card" style="background:radial-gradient(120% 90% at 100% 0%,color-mix(in srgb,var(--acc) 28%,transparent),transparent 60%),var(--s1)">
-    <div class="col" style="gap:14px"><div class="feat"><span class="fi">${I.bell}</span><span><b>Know when they train</b><span>Open the app and see who hit a workout, who closed their day, who’s slacking.</span></span></div>
-    <div class="feat"><span class="fi">${I.wave}</span><span><b>Nudge, cheer, flex</b><span>One tap to push a friend, or show off a PR.</span></span></div>
-    <div class="feat"><span class="fi">${I.trophy}</span><span><b>Weekly league</b><span>Day scores add up. Highest week wins. Resets every Monday.</span></span></div>
-    <div class="feat"><span class="fi">${I.target}</span><span><b>You choose what’s shared</b><span>Scores and workouts by default. Meals and weight stay private unless you say so.</span></span></div></div>
+  return `<div class="card">
+    <div class="col" style="gap:14px"><div class="feat"><span class="fi">${I.bell}</span><span><b>Know when they train</b><span>See who trained today.</span></span></div>
+    <div class="feat"><span class="fi">${I.wave}</span><span><b>Nudge, cheer, flex</b><span>One tap to push a friend.</span></span></div>
+    <div class="feat"><span class="fi">${I.trophy}</span><span><b>Weekly league</b><span>Highest week wins.</span></span></div>
+    <div class="feat"><span class="fi">${I.target}</span><span><b>Private by default</b><span>Meals and weight are never shared.</span></span></div></div>
     <div class="col mt2"><button class="btn wide" data-act="joinSheet">Create your profile</button><button class="btn ghost wide" data-act="loginSheet">I already have one</button></div></div>`;
 }
 A.joinSheet = () => {
@@ -99,7 +99,7 @@ function vsCard() {
   return `<div class="card"><div class="chd"><h3>Head to head</h3><span class="r">This week</span></div>
   <div class="vs"><div class="side">${avatar(me.avatar, 'md', me.display)}<b class="n">${fmt(mw)}</b><span>You · ${myDay} today</span></div><div class="mid">VS</div><button class="side" data-act="friend" data-arg="${esc(rival.handle)}">${avatar(rival.avatar, 'md', rival.display)}<b class="n">${fmt(rw)}</b><span>${first(rival)} · ${theirDay} today</span></button></div>
   <div class="vsbar"><i style="width:${(mw / tot) * 100}%;background:var(--acc)"></i><i style="width:${(rw / tot) * 100}%;background:var(--ink3)"></i></div>
-  <p class="muted small" style="margin:12px 0 0">${msg}</p>
+  
   <div class="row mt">${lead >= 0 ? `<button class="btn sm grow" data-act="sendNudge" data-arg="${esc(rival.handle)}|flex">💪 Flex on ${first(rival)}</button>` : ''}<button class="btn sm ${lead >= 0 ? 'ghost' : ''} grow" data-act="sendNudge" data-arg="${esc(rival.handle)}|nudge">👀 Nudge</button></div></div>`;
 }
 

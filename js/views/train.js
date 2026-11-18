@@ -4,7 +4,7 @@ import { todayK, addDays, wkStart, pdk, esc, fmt, uid, num, nint, DOW, DOWL, pla
 import { A, CH, I, $, openSheet, setSheet, closeSheet, toast, haptic, beep, confetti, pickFiles, Sheet } from '../ui.js';
 import { EXERCISES, MUSCLES, GROUPS, EQUIP, PROGRAMS, findEx, allEx, groupOf } from '../exercises.js';
 import { bodyMap, heatMap } from '../body.js';
-import { line } from '../charts.js';
+import { line, spark } from '../charts.js';
 import { aiOn, importWorkouts, errMsg } from '../ai.js';
 import { postWorkout } from './friends.js';
 
@@ -15,26 +15,23 @@ const unit = () => S.profile.units || 'kg';
 export function vTrain() {
   const t = todayK(), ws = wkStart(t), h = hist();
   const wkDays = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
-  let x = `<div class="top"><div><div class="sub">${h.sessions.length} workouts logged</div><h1>Train</h1></div><div class="row"><button class="iconbtn" data-act="library" aria-label="Exercise library">${I.book}</button><button class="iconbtn" data-act="importSheet" aria-label="Import">${I.upload}</button></div></div>`;
-  x += `<div class="week">${wkDays.map(k => { const fx = planned(S, k), d = get(k), done = liftDone(d); return `<button class="wd ${k === t ? 'today' : ''}" data-act="planDay" data-arg="${k}"><span>${DOW[pdk(k).getDay()]}</span><b>${pdk(k).getDate()}</b><span class="p">${fx === 'rest' ? 'Rest' : esc(routineName(S, fx))}</span><i class="d ${done ? 'done' : k < t && fx !== 'rest' ? 'miss' : ''}"></i></button>`; }).join('')}</div>`;
-  const d = get(t);
-  if (d.wo && d.wo.status === 'active') x += `<div class="card wo"><span class="pill acc">${I.timer} In progress</span><h2 style="font-size:24px;margin:6px 0">${esc(d.wo.name)}</h2><button class="btn wide" data-act="openSession">Continue</button></div>`;
-  else { const fx = planned(S, t); if (fx !== 'rest' && !liftDone(d)) x += `<div class="card wo"><span class="pill acc">Today</span><h2 style="font-size:24px;margin:6px 0">${esc(routineName(S, fx))}</h2><div class="row"><button class="btn grow" data-act="startPlanned">${I.play} Start</button><button class="btn ghost" data-act="pickWorkout">Other</button></div></div>`;
-    else x += `<button class="btn ghost wide" data-act="pickWorkout">${I.play} Start a workout</button>`; }
-  // muscle heat for the week
+  let x = `<div class="top"><div><div class="sub">${h.sessions.length} workouts</div><h1>Train</h1></div><div class="row"><button class="iconbtn" data-act="library" aria-label="Exercise library">${I.book}</button><button class="iconbtn" data-act="importSheet" aria-label="Import">${I.upload}</button></div></div>`;
+  x += `<div class="week">${wkDays.map(k => { const fx = planned(S, k), done = liftDone(get(k)); return `<button class="wd ${k === t ? 'today' : ''} ${done ? 'done' : ''}" data-act="planDay" data-arg="${k}"><span>${DOW[pdk(k).getDay()][0]}</span><b>${pdk(k).getDate()}</b><i class="d ${done ? 'done' : fx === 'rest' ? '' : k < t ? 'miss' : 'plan'}"></i></button>`; }).join('')}</div>`;
+  const d = get(t), fx = planned(S, t);
+  if (d.wo && d.wo.status === 'active') x += `<button class="hcard c-train" data-act="openSession"><div class="hh"><span>${I.timer}In progress</span><i>${I.chev}</i></div><div class="vv">${esc(d.wo.name)}</div></button>`;
+  else if (liftDone(d)) x += `<button class="hcard c-train" data-act="sessionDetail" data-arg="${t}"><div class="hh"><span>${I.check}Done today</span><i>${I.chev}</i></div><div class="vv">${esc(d.wo.name)}</div></button>`;
+  else if (fx !== 'rest') { const r = S.routines.find(q => q.id === fx); x += `<div class="hcard c-train"><div class="hh"><span>${I.dumb}Today</span><i>${r ? r.ex.length + ' exercises' : ''}</i></div><div class="vv">${esc(routineName(S, fx))}</div><div class="row mt"><button class="btn grow" data-act="startPlanned">${I.play} Start</button><button class="btn ghost" data-act="pickWorkout">Other</button></div></div>`; }
+  else x += `<button class="hcard c-train" data-act="pickWorkout"><div class="hh"><span>${I.moon}Rest day</span><i>Train anyway${I.chev}</i></div><div class="vv">Recover</div></button>`;
   const vol = {}; h.sessions.filter(s => s.date >= ws).forEach(s => s.ex.forEach(e => { const info = exInfo(e.name); info.p.forEach(m => { vol[m] = (vol[m] || 0) + e.sets; }); info.s.forEach(m => { vol[m] = (vol[m] || 0) + e.sets * 0.5; }); }));
   const hv = {}; Object.keys(vol).forEach(m => { hv[m] = Math.min(1, vol[m] / 12); });
-  x += `<div class="card"><div class="chd"><h3>Muscles this week</h3><span class="r">Sets per muscle</span></div><div class="exhero" style="border:0;padding:0">${heatMap(hv)}</div>
-    <div class="row wrap" style="gap:6px;margin-top:8px">${Object.entries(vol).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([m, n]) => `<span class="pill">${MUSCLES[m] || m} ${Math.round(n)}</span>`).join('') || '<span class="faint small">Finish a workout and the map fills in.</span>'}</div></div>`;
-  x += `<div class="sect"><h2>Routines</h2><button class="link" data-act="routineNew">+ New</button></div>`;
-  x += S.routines.length ? `<div class="col">${S.routines.map(r => { const mus = [...new Set(r.ex.flatMap(e => exInfo(e.name).p))].slice(0, 5); const days = Object.entries(S.plan).filter(([, v]) => v === r.id).map(([k2]) => DOW[k2]); return `<button class="rt" data-act="routine" data-arg="${r.id}"><span><b>${esc(r.name)}</b><span class="faint small" style="display:block">${r.ex.length} exercises${days.length ? ' · ' + days.join(', ') : ''}</span><span class="mus">${mus.map(m => `<span class="pill">${MUSCLES[m] || m}</span>`).join('')}</span></span><span class="chev">${I.chev}</span></button>`; }).join('')}</div>`
-    : `<div class="card empty">${I.dumb}<b>No routines yet</b><span class="small">Pick a proven program, build your own, or import what you already do.</span><div class="row wrap" style="justify-content:center"><button class="btn sm" data-act="programs">Programs</button><button class="btn sm ghost" data-act="importSheet">Import with AI</button></div></div>`;
-  if (S.routines.length) x += `<button class="btn line wide" data-act="programs">Browse programs</button>`;
-  // recent sessions + top lifts
+  x += `<div class="hcard c-train"><div class="hh"><span>${I.target}This week</span></div><div class="exhero" style="padding:4px 0 0">${heatMap(hv)}</div></div>`;
+  x += `<div class="sect"><h2>Routines</h2><button class="link" data-act="routineNew">New</button></div>`;
+  x += S.routines.length ? `<div class="card tight"><div class="list">${S.routines.map(r => { const days = Object.entries(S.plan).filter(([, v]) => v === r.id).map(([k2]) => DOW[k2]); return `<button class="exrow" data-act="routine" data-arg="${r.id}"><span class="th">${thumb((r.ex[0] || {}).name || 'Lat Pulldown')}</span><span><b>${esc(r.name)}</b><span>${days.length ? days.join(' · ') : r.ex.length + ' exercises'}</span></span><span class="chev">${I.chev}</span></button>`; }).join('')}</div></div><button class="btn line wide" data-act="programs">Browse programs</button>`
+    : `<div class="card empty">${I.dumb}<b>No routines yet</b><div class="row wrap" style="justify-content:center"><button class="btn sm" data-act="programs">Programs</button><button class="btn sm ghost" data-act="importSheet">Import</button></div></div>`;
   if (h.sessions.length) {
-    x += `<div class="sect"><h2>Recent</h2></div><div class="card"><div class="list">${h.sessions.slice(-6).reverse().map(s => `<button class="li" data-act="sessionDetail" data-arg="${s.date}"><span class="ic c-train">${I.dumb}</span><span><span class="t">${esc(s.name)}</span><span class="s">${pdk(s.date).toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' })} · ${s.sets} sets${s.prs ? ' · ' + s.prs + ' PR' : ''}</span></span><span class="r">${fmt(s.vol)} ${unit()}</span></button>`).join('')}</div></div>`;
     const top = Object.entries(h.map).sort((a, b) => b[1].length - a[1].length).slice(0, 6);
-    x += `<div class="sect"><h2>Your lifts</h2></div><div class="card"><div class="list">${top.map(([n, rows]) => { const best = Math.max(...rows.map(r => r.e1)); const first = rows[0].e1, ch = first ? ((best - first) / first) * 100 : 0; return `<button class="exrow" data-act="exDetail" data-arg="${esc(n)}"><span class="th">${thumb(n)}</span><span><b>${esc(n)}</b><span>Best ${rows.at(-1).top.w} × ${rows.at(-1).top.r} last · est. 1RM ${Math.round(best)}</span></span><span class="pill ${ch > 0 ? 'win' : ''}">${ch > 0 ? '+' : ''}${Math.round(ch)}%</span></button>`; }).join('')}</div></div>`;
+    x += `<div class="sect"><h2>Lifts</h2></div><div class="card tight"><div class="list">${top.map(([n, rows]) => `<button class="exrow" data-act="exDetail" data-arg="${esc(n)}"><span class="th">${thumb(n)}</span><span><b>${esc(n)}</b><span>${rows.at(-1).top.w} × ${rows.at(-1).top.r}</span></span><span>${spark(rows.slice(-10).map(r => r.e1), { c: 'train', w: 64, h: 24 })}</span></button>`).join('')}</div></div>`;
+    x += `<div class="sect"><h2>History</h2></div><div class="card tight"><div class="list">${h.sessions.slice(-5).reverse().map(s => `<button class="li noic" data-act="sessionDetail" data-arg="${s.date}"><span><span class="t">${esc(s.name)}</span><span class="s">${pdk(s.date).toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' })}${s.prs ? ' · ' + s.prs + ' PR' : ''}</span></span><span class="r">${fmt(s.vol)} ${unit()}</span></button>`).join('')}</div></div>`;
   }
   $('#v-train').innerHTML = x;
 }
