@@ -15,15 +15,13 @@
 <title>Pace</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="css/app.css">
-<link rel="stylesheet" id="skin" href="css/skins/volt.css">
 <script>
   // Paint the right theme before the app loads, so there is no flash.
   try { const s = JSON.parse(localStorage.getItem('form2:state') || '{}').settings || {}; const t = new URLSearchParams(location.search).get('theme') || s.theme || 'dark';
     document.documentElement.dataset.theme = t === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : t;
-    document.documentElement.dataset.acc = s.accent || 'sage';
-    const q = new URLSearchParams(location.search).get('skin'); const sk = q || s.skin || 'volt'; const light = ['varsity','swiss','arctic','matcha'], dark = ['iron','carbon','neon','pink','gold','sunset','military','arcade']; if (light.includes(sk)) document.documentElement.dataset.theme = 'light'; if (dark.includes(sk)) document.documentElement.dataset.theme = 'dark'; document.getElementById('skin').href = 'css/skins/' + sk + '.css'; } catch (e) {}
+    document.documentElement.dataset.acc = s.accent || 'lime'; } catch (e) {}
 </script>
 </head>
 <body>

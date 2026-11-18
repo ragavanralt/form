@@ -7,25 +7,13 @@ import { Social, socialErr } from '../social.js';
 import { socialSignOut, socialDelete, syncStats } from './friends.js';
 import { findEx } from '../exercises.js';
 
-// Themes: each is one CSS file in css/skins. mode forces light or dark when the look only works one way.
-export const SKINS = [
-  ['volt', 'Volt', 'any', '#080808', '#d4ff3a'], ['iron', 'Iron', 'dark', '#1a1a18', '#ffd400'], ['carbon', 'Carbon', 'dark', '#0d0d0e', '#e10600'],
-  ['neon', 'Neon', 'dark', '#06081a', '#00f0ff'], ['pink', 'Pink Pump', 'dark', '#0a0709', '#ff2d9a'], ['gold', 'Gold', 'dark', '#070707', '#d6b25e'],
-  ['sunset', 'Sunset', 'dark', '#1a0f24', '#ff8a3d'], ['military', 'Military', 'dark', '#23261b', '#c8b273'], ['arcade', 'Arcade', 'dark', '#040704', '#39ff14'],
-  ['varsity', 'Varsity', 'light', '#f1e9da', '#c8102e'], ['swiss', 'Swiss', 'light', '#ffffff', '#ff2a00'], ['arctic', 'Arctic', 'light', '#e8f1f7', '#1e88e5'],
-  ['matcha', 'Matcha', 'light', '#f2f0e6', '#6b8f47'], ['journal', 'Journal', 'any', '#efebe3', '#e0532b'], ['calm', 'Calm', 'any', '#0c0c0d', '#55c98a'],
-];
 export function applyTheme() {
-  const r = document.documentElement, q = new URLSearchParams(location.search);
-  const sk = SKINS.find(x => x[0] === (q.get('skin') || S.settings.skin || 'volt')) || SKINS[0];
-  const th = q.get('theme') || (sk[2] !== 'any' ? sk[2] : S.settings.theme);
+  const r = document.documentElement, th = new URLSearchParams(location.search).get('theme') || S.settings.theme;
   const dark = th === 'dark' || (th === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
-  r.dataset.theme = dark ? 'dark' : 'light'; r.dataset.acc = S.settings.accent || 'sage';
-  const link = document.getElementById('skin'), href = 'css/skins/' + sk[0] + '.css';
-  if (link && !link.href.endsWith(href)) link.href = href;
-  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = sk[3];
+  r.dataset.theme = dark ? 'dark' : 'light'; r.dataset.acc = S.settings.accent || 'lime';
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = dark ? '#0b0c0f' : '#f3f5f8';
 }
-const ACC = [['sage', '#6fbf9f'], ['violet', '#7c5cff'], ['blue', '#3b82f6'], ['teal', '#14b8a6'], ['lime', '#a3e635'], ['orange', '#ff6b35'], ['pink', '#ec4899'], ['mono', '#9a9aa3']];
+const ACC = [['lime', '#c6f432'], ['blue', '#3d8bff'], ['violet', '#8b6cff'], ['mint', '#2fd6a3'], ['orange', '#ff7a2f'], ['pink', '#ff4f9a'], ['red', '#ff4545']];
 const row = (act, ic, c, t, s, r = `<span class="chev">${I.chev}</span>`, arg = '') => `<button class="li" data-act="${act}" data-arg="${arg}"><span class="ic c-${c}">${ic}</span><span><span class="t">${t}</span>${s ? `<span class="s">${s}</span>` : ''}</span>${r}</button>`;
 
 A.settings = () => {
@@ -35,7 +23,7 @@ A.settings = () => {
     ${row('setModules', I.list, 'accent', 'What I track', MODULES.filter(m => S.modules[m.id]).map(m => m.n).join(', '))}
     ${row('setTargets', I.target, 'food', 'Targets', `${fmt(S.targets.cal)} kcal · ${S.targets.pro} g protein`)}
     ${row('setScore', I.chart, 'train', 'How scoring works', 'What each part is worth')}
-    ${row('setLook', I.moon, 'habit', 'Theme', (SKINS.find(x => x[0] === (S.settings.skin || 'volt')) || SKINS[0])[1])}
+    ${row('setLook', I.moon, 'habit', 'Appearance', { system: 'Auto', dark: 'Dark', light: 'Light' }[S.settings.theme] || 'Dark')}
   </div></div></div>
   <div class="sec"><div class="lab">Smart features</div><div class="card tight"><div class="list">
     ${row('setAI', I.spark, 'accent', 'AI', aiLabel())}
@@ -84,13 +72,9 @@ A.tSuggest = () => { const sg = suggestTargets(S.profile); Object.assign(S.targe
 A.setScore = () => { const w = weights(S); openSheet('sc', 'How scoring works', `<p class="muted" style="margin-top:-6px">Each day is scored out of 100 from the things you track. <b style="color:var(--ink)">70+ is a win</b>, 45+ keeps your streak alive.</p><div class="card tight"><div class="list">${Object.entries(w).map(([k, v]) => `<div class="li noic"><span><span class="t">${PART[k].n}</span><span class="s">${{ cal: S.profile.goal === 'cut' ? 'Full points from 600 under your goal to 100 over' : S.profile.goal === 'bulk' ? 'Full points from 100 under to anything over' : 'Full points within 150 of your goal', pro: 'Full at your goal, scales up from 30%', train: 'Finish the planned workout. Rest days count', cardio: 'Scales up to your daily minutes', steps: 'Scales up to your step goal', water: 'Scales up to your water goal', supps: 'Share of your stack taken' }[k]}</span></span><span class="r b">${Math.round(v)}</span></div>`).join('')}</div></div><button class="btn wide mt2" data-act="settings">Done</button>`); };
 
 /* ---------- look ---------- */
-A.setLook = () => {
-  const cur = S.settings.skin || 'volt', sk = SKINS.find(x => x[0] === cur) || SKINS[0];
-  openSheet('look', 'Theme', `<div class="skins">${SKINS.map(([id, n, , bg, ac]) => `<button class="skin ${cur === id ? 'on' : ''}" data-act="lkSkin" data-arg="${id}"><span class="sw" style="background:${bg}"><i style="background:${ac}"></i><i style="background:${ac};opacity:.55"></i><i style="background:${ac};opacity:.25"></i></span><b>${n}</b></button>`).join('')}</div>
-  ${sk[2] === 'any' ? `<div class="lab faint small b mt2">MODE</div><div class="seg mt">${[['system', 'System'], ['dark', 'Dark'], ['light', 'Light']].map(([k, l]) => `<button class="${S.settings.theme === k ? 'on' : ''}" data-act="lkTheme" data-arg="${k}">${l}</button>`).join('')}</div>` : ''}
+A.setLook = () => openSheet('look', 'Appearance', `<div class="lab faint small b">MODE</div><div class="seg mt">${[['dark', 'Dark'], ['light', 'Light'], ['system', 'Auto']].map(([k, l]) => `<button class="${S.settings.theme === k ? 'on' : ''}" data-act="lkTheme" data-arg="${k}">${l}</button>`).join('')}</div>
+  <div class="lab faint small b mt2">ACCENT</div><div class="swatches mt">${ACC.map(([k, c]) => `<button style="background:${c}" class="${(S.settings.accent || 'lime') === k ? 'on' : ''}" data-act="lkAcc" data-arg="${k}" aria-label="${k}"></button>`).join('')}</div>
   <button class="btn wide mt2" data-act="settings">Done</button>`);
-};
-A.lkSkin = id => { S.settings.skin = id; save(); applyTheme(); A.setLook(); render(); };
 A.lkTheme = t => { S.settings.theme = t; save(); applyTheme(); A.setLook(); };
 A.lkAcc = a => { S.settings.accent = a; save(); applyTheme(); A.setLook(); render(); };
 
