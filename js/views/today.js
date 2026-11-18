@@ -36,9 +36,11 @@ export function vToday() {
   const chips = [];
   if (S.modules.water) chips.push(`<button class="hb c-water ${d.water >= T.water ? 'on' : ''}" data-act="water" data-arg="250">${I.drop}${+(d.water / 1000).toFixed(2)} / ${+(T.water / 1000).toFixed(1)} L</button>`);
   if (S.modules.supps) S.supps.forEach(x => chips.push(`<button class="hb c-habit ${d.supps[x.id] ? 'on' : ''}" data-act="supp" data-arg="${x.id}">${d.supps[x.id] ? I.check : I.pill}${esc(x.name)}</button>`));
-  h += `<div class="card pad0"><div class="sum"><div class="rw">${arings(rp, 150, rp.length > 2 ? 17 : 20, 3)}</div><div class="rows">${rp.map(r => `<div class="rr r-${r.k}"><small>${r.n}</small>${status(r)}</div>`).join('')}</div></div>
+  h += `<section class="ledger">
+    <div class="lg-top"><div><span class="kicker">Day score</span><b class="lg-score">${sc.total}</b></div><div class="lg-side"><span class="stamp ${tier}">${TIER_L[tier]}</span><span class="kicker">${st.streak} day streak</span></div></div>
+    ${rp.map((r, i) => `<div class="lrow r-${r.k}"><span class="kicker">0${i + 1}</span><span class="ln">${r.n}</span><span class="lv">${status(r)}</span><div class="tape"><i style="width:${Math.min(100, r.f * 100).toFixed(1)}%"></i></div></div>`).join('')}
     ${chips.length ? `<div class="habits2">${chips.join('')}</div>` : ''}
-    <button class="scorebar" data-act="closeDay" style="width:100%"><span class="sc"><b>${sc.total}</b><span>day score</span></span><span class="row" style="gap:8px"><span class="pill ${tier}">${TIER_L[tier]}</span><span class="chev">${I.chev}</span></span></button></div>`;
+    <button class="lg-foot" data-act="closeDay"><span>${d.closed ? 'Day closed' : 'Close the day'}</span><span>→</span></button></section>`;
 
   // Streak, level, week
   h += `<div class="strip">
