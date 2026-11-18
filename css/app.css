@@ -226,7 +226,7 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
 body:has(#dock:not([hidden])) #views{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
 
 /* sheets */
-#sheetwrap{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center}
+#sheetwrap{position:fixed;inset:0;z-index:65;display:flex;align-items:flex-end;justify-content:center}
 #sheetwrap .scrim{position:absolute;inset:0;background:rgba(0,0,0,.55);animation:fadeonly .2s}
 @keyframes fadeonly{from{opacity:0}}
 .sheet{position:relative;width:min(600px,100%);max-height:calc(100% - env(safe-area-inset-top,0px) - 12px);overflow:auto;background:var(--bg);border-top:1px solid var(--line2);border-radius:28px 28px 0 0;padding:8px max(18px,env(safe-area-inset-left,0px)) calc(26px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-right,0px));animation:up .28s cubic-bezier(.2,.9,.2,1);overscroll-behavior:contain}

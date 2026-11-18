@@ -160,8 +160,4 @@ A.obV1 = () => {
   toast(`Brought in ${days} days, ${S.routines.length} routines`);
   OB.i = 1; draw();
 };
-A.obRestore = async () => {
-  const [f] = await pickFiles('application/json,.json'); if (!f) return;
-  try { const j = JSON.parse(await f.text()); const st = j.form2 ? j.state : j.form && j.state ? migrateV1(j.state, n2 => { const x = findEx(n2); return x ? { m: x.p[0] } : null; }) : j.v === 2 ? j : null; if (!st) throw 0; replaceState(normalize(st)); S.onboarded = true; save(); $('#onboard').hidden = true; render(); toast('Backup restored'); }
-  catch (e) { toast('That file isn’t a Lifted backup'); }
-};
+A.obRestore = () => A.importData();

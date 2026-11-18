@@ -121,5 +121,6 @@ export const ago = iso => { const s = (Date.now() - new Date(iso)) / 1000; if (s
 export async function share(text, title = 'Lifted') { try { if (navigator.share) { await navigator.share({ title, text }); return true; } } catch (e) { return false; } try { await navigator.clipboard.writeText(text); toast('Copied'); return true; } catch (e) { return false; } }
 export function download(name, text, type = 'application/json') { const b = new Blob([text], { type }); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); }
 export function pickFiles(accept = 'image/*', multiple = false, capture = false) {
-  return new Promise(res => { const i = document.createElement('input'); i.type = 'file'; i.accept = accept; i.multiple = multiple; if (capture) i.setAttribute('capture', 'environment'); i.onchange = () => res([...i.files]); i.click(); });
+  // The input lives in the page until it fires: iOS Safari drops detached inputs before change.
+  return new Promise(res => { const i = document.createElement('input'); i.type = 'file'; if (accept) i.accept = accept; i.multiple = multiple; if (capture) i.setAttribute('capture', 'environment'); i.style.cssText = 'position:fixed;left:-9999px;opacity:0'; document.body.appendChild(i); i.onchange = () => { res([...i.files]); i.remove(); }; i.click(); });
 }

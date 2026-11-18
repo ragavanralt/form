@@ -6,6 +6,7 @@ import { aiLabel, gemKey, setGemKey, testKey, errMsg } from '../ai.js';
 import { Social, socialErr } from '../social.js';
 import { socialSignOut, socialDelete, syncStats } from './friends.js';
 import { findEx } from '../exercises.js';
+import { readBackup } from '../backup.js';
 
 export function applyTheme() {
   const r = document.documentElement, th = new URLSearchParams(location.search).get('theme') || S.settings.theme;
@@ -124,9 +125,24 @@ A.trSound = () => { S.settings.sound = !S.settings.sound; save(); A.setTraining(
 
 /* ---------- data ---------- */
 A.exportData = () => { download(`lifted-backup-${todayK()}.json`, JSON.stringify({ form2: true, at: new Date().toISOString(), state: S })); toast('Backup downloaded'); };
-A.importData = () => openSheet('imp', 'Restore or import', `<div class="col">${hasV1() ? `<button class="rt" data-act="impV1"><span><b>Bring in data from Form Classic</b><span class="faint small" style="display:block">Found on this phone. Days, workouts, routines and foods.</span></span><span class="chev">${I.chev}</span></button>` : ''}<button class="rt" data-act="impFile"><span><b>Restore a backup file</b><span class="faint small" style="display:block">A Form 2 backup, or a Form Classic export (.json)</span></span><span class="chev">${I.chev}</span></button></div>`);
+A.importData = () => openSheet('imp', 'Restore or import', `<div class="col">${hasV1() ? `<button class="rt" data-act="impV1"><span><b>Bring in data from Form Classic</b><span class="faint small" style="display:block">Found on this phone. Days, workouts, routines and foods.</span></span><span class="chev">${I.chev}</span></button>` : ''}<button class="rt" data-act="impFile"><span><b>Choose a backup file</b><span class="faint small" style="display:block">A Lifted, Form or Form Classic backup (.json)</span></span><span class="chev">${I.chev}</span></button>
+  <div class="lab faint small b mt2">OR PASTE IT</div><textarea id="imptxt" placeholder="Paste a backup you copied" style="min-height:110px"></textarea><button class="btn wide" data-act="impPaste">Restore</button></div>`);
 function mergeDays(n) { let c = 0; Object.entries(n.days).forEach(([k, d]) => { const cur = S.days[k]; if (!cur || (!cur.meals.length && !cur.wo)) { S.days[k] = d; c++; } }); n.routines.forEach(r => { if (!S.routines.some(x => x.name === r.name)) S.routines.push(r); }); if (n.profile.start < S.profile.start) S.profile.start = n.profile.start; S.foods.fav = [...S.foods.fav, ...n.foods.fav].slice(0, 80); return c; }
 const fx = n2 => { const x = findEx(n2); return x ? { m: x.p[0] } : null; };
 A.impV1 = () => { const o = readV1(); if (!o) return; const n = migrateV1(o, fx); const c = mergeDays(n); touch(); closeSheet(); render(); toast(`Imported ${c} days from Form Classic`); };
-A.impFile = async () => { const [f] = await pickFiles('application/json,.json'); if (!f) return; try { const j = JSON.parse(await f.text()); if (j.form2 && j.state) { if (!confirm('Replace everything on this phone with this backup?')) return; replaceState(j.state); S.onboarded = true; save(); } else if (j.form && j.state) { const c = mergeDays(migrateV1(j.state, fx)); touch(); toast(`Imported ${c} days`); } else throw 0; closeSheet(); render(); } catch (e) { toast('That isn’t a Lifted backup'); } };
+A.impFile = async () => { const [f] = await pickFiles(''); if (!f) return; let t = ''; try { t = await f.text(); } catch (e) {} restoreText(t); };
+A.impPaste = () => restoreText(($('#imptxt') || {}).value);
+// One restore path for Settings and onboarding. Lifted backups replace everything; older apps merge in.
+function restoreText(t) {
+  const r = readBackup(t, fx);
+  if (!r) { toast('Couldn’t read that. Pick the backup .json file, or paste its text.'); return; }
+  const fresh = !S.onboarded;
+  if (r.kind === 'full' || fresh) {
+    if (!fresh && !confirm('Replace everything on this phone with this backup?')) return;
+    replaceState(r.state); S.onboarded = true; save();
+  } else { mergeDays(r.state); touch(); }
+  const n = Object.keys(r.state.days).length;
+  closeSheet(); const ob = $('#onboard'); if (ob) ob.hidden = true; render();
+  toast(`Restored ${n} day${n === 1 ? '' : 's'}${r.kind === 'old' ? ' from your ' + r.label : ''}`);
+}
 A.resetApp = () => { if (!confirm('Erase everything on this phone and start setup again? Download a backup first if you want to keep it.')) return; localStorage.removeItem(KEY); location.reload(); };
