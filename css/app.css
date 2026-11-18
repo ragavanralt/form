@@ -318,7 +318,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 .set.h{font-size:11px;color:var(--ink3);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
 .set.h span{text-align:center}
 .set .k{height:34px;border-radius:9px;font-size:13px;font-weight:700;color:var(--ink2);background:var(--s2)}
-.set .k.W{color:var(--hold)}
+.set .k.W{color:var(--hold)}.set .k.D{color:var(--move)}.set .k.F{color:var(--food)}
 .set .pv{font-size:12.5px;color:var(--ink3);text-align:center}
 .set input{padding:10px 4px;text-align:center;font-size:17px;font-weight:600;border-radius:11px}
 .ck{width:46px;height:42px;border-radius:12px;background:var(--s2);display:grid;place-items:center;color:var(--ink3)}

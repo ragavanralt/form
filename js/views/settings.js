@@ -1,6 +1,6 @@
 // Settings: profile, modules, targets, appearance, AI, friends and privacy, reminders, data.
 import { S, save, touch, render, replaceState, hasV1, readV1, KEY } from '../store.js';
-import { MODULES, ACTIVITY, suggestTargets, weights, PART, esc, fmt, nint, num, todayK, migrateV1, normalize, freshState, addDays, pdk } from '../core.js';
+import { MODULES, ACTIVITY, suggestTargets, weights, PART, esc, fmt, nint, num, todayK, migrateV1, normalize, freshState, addDays, pdk, totals, score } from '../core.js';
 import { A, CH, I, $, openSheet, setSheet, closeSheet, toast, toggle, download, pickFiles, avatar, AV_EMO, AV_BG, avUrl } from '../ui.js';
 import { aiLabel, gemKey, setGemKey, testKey, errMsg } from '../ai.js';
 import { Social, socialErr } from '../social.js';
@@ -35,6 +35,7 @@ A.settings = () => {
   <div class="sec"><div class="lab">Data</div><div class="card tight"><div class="list">
     ${row('exportData', I.upload, 'habit', 'Back up', 'Download everything as a file')}
     ${row('importData', I.copy, 'habit', 'Restore or import', 'A Lifted backup, or the old Form app')}
+    ${row('moreData', I.list, 'habit', 'Copy or export', 'Copy a backup, or a spreadsheet of every day')}
     ${row('resetApp', I.trash, 'pro', 'Start over', 'Wipe this phone and run setup again', '')}
   </div></div></div>
   <p class="faint tiny center mt">Lifted · Your log lives on this phone. Friends see only what you share.<br><a class="link" href="classic/">Open Form Classic</a></p>`, { full: true });
@@ -116,15 +117,32 @@ A.remDl = () => {
 };
 
 /* ---------- workout settings ---------- */
-A.setTraining = () => openSheet('trs', 'Workout settings', `<div class="field"><span>Default rest</span><div class="seg">${[60, 90, 120, 180].map(v => `<button class="${S.settings.rest === v ? 'on' : ''}" data-act="trRest" data-arg="${v}">${v < 120 ? v + ' s' : v / 60 + ' min'}</button>`).join('')}</div></div>
+A.setTraining = () => openSheet('trs', 'Workout settings', `<div class="field"><span>Default rest</span><div class="seg">${[60, 90, 120, 180].map(v => `<button class="${S.settings.rest === v ? 'on' : ''}" data-act="trRest" data-arg="${v}">${v < 120 ? v + ' s' : v / 60 + ' min'}</button>`).join('')}</div>${[60, 90, 120, 180].includes(S.settings.rest) ? '' : `<span class="faint small">Now ${S.settings.rest} s</span>`}</div>
   <div class="field mt"><span>Units</span><div class="seg">${['kg', 'lb'].map(u => `<button class="${S.profile.units === u ? 'on' : ''}" data-act="trUnit" data-arg="${u}">${u}</button>`).join('')}</div></div>
-  <div class="li noic mt"><span><span class="t">Rest timer sound</span></span>${toggle('trSound', S.settings.sound)}</div><button class="btn wide mt2" data-act="settings">Done</button>`);
+  <div class="li noic mt"><span><span class="t">Start rest after each set</span><span class="s">Off means you start it yourself</span></span>${toggle('trAuto', S.settings.autoRest !== false)}</div>
+  <div class="li noic"><span><span class="t">Rest timer sound</span></span>${toggle('trSound', S.settings.sound)}</div>
+  <button class="li noic" data-act="restSet"><span><span class="t">More rest options</span><span class="s">Custom length, start a timer now</span></span><span class="chev">${I.chev}</span></button><button class="btn wide mt2" data-act="settings">Done</button>`);
+A.trAuto = () => { S.settings.autoRest = S.settings.autoRest === false; save(); A.setTraining(); };
 A.trRest = v => { S.settings.rest = +v; save(); A.setTraining(); };
 A.trUnit = u => { S.profile.units = u; save(); A.setTraining(); render(); };
 A.trSound = () => { S.settings.sound = !S.settings.sound; save(); A.setTraining(); };
 
 /* ---------- data ---------- */
 A.exportData = () => { download(`lifted-backup-${todayK()}.json`, JSON.stringify({ form2: true, at: new Date().toISOString(), state: S })); toast('Backup downloaded'); };
+A.moreData = () => openSheet('more', 'Copy or export', `<div class="list"><button class="li noic" data-act="copyBackup"><span><span class="t">Copy backup</span><span class="s">Everything, as text. Paste it into Restore on any phone.</span></span><span class="chev">${I.chev}</span></button><button class="li noic" data-act="exportCSV"><span><span class="t">Spreadsheet (CSV)</span><span class="s">One row per day: score, food, steps, water, cardio, workout, weight</span></span><span class="chev">${I.chev}</span></button><button class="li noic" data-act="exportSets"><span><span class="t">Every set (CSV)</span><span class="s">One row per set, for your own lifting analysis</span></span><span class="chev">${I.chev}</span></button></div>`);
+A.copyBackup = async () => { const t = JSON.stringify({ form2: true, at: new Date().toISOString(), state: S }); try { await navigator.clipboard.writeText(t); toast('Backup copied'); } catch (e) { download(`lifted-backup-${todayK()}.json`, t); toast('Couldn’t copy, so it downloaded instead'); } };
+const csvQ = v => { const x = String(v ?? ''); return /[",\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
+A.exportCSV = () => {
+  const rows = [['date', 'score', 'kcal', 'protein_g', 'carbs_g', 'fat_g', 'meals', 'steps', 'water_ml', 'cardio_min', 'workout', 'sets', 'volume_' + (S.profile.units || 'kg'), 'weight']];
+  Object.keys(S.days).sort().forEach(k => { const d = S.days[k], t = totals(d), w = d.wo && d.wo.status === 'done' ? d.wo : null; const sets = w ? w.ex.reduce((a, e) => a + e.sets.filter(s => s.done && s.k !== 'W').length, 0) : 0; const vol = w ? w.ex.reduce((a, e) => a + e.sets.filter(s => s.done && s.k !== 'W').reduce((b, s) => b + num(s.w) * num(s.r), 0), 0) : 0;
+    rows.push([k, score(S, k).total, Math.round(t.cal), Math.round(t.p), Math.round(t.c), Math.round(t.f), (d.meals || []).length, d.steps || 0, d.water || 0, (d.cardio || []).reduce((a, c) => a + (+c.min || 0), 0), w ? w.name : '', sets, Math.round(vol), d.weight || '']); });
+  download(`lifted-days-${todayK()}.csv`, rows.map(r => r.map(csvQ).join(',')).join('\n'), 'text/csv'); toast('Spreadsheet downloaded');
+};
+A.exportSets = () => {
+  const rows = [['date', 'workout', 'exercise', 'set', 'type', 'weight_' + (S.profile.units || 'kg'), 'reps', 'pr']];
+  Object.keys(S.days).sort().forEach(k => { const w = S.days[k].wo; if (!w || w.status !== 'done') return; w.ex.forEach(e => e.sets.filter(s => s.done).forEach((s, i) => rows.push([k, w.name, e.name, i + 1, { N: 'working', W: 'warm-up', D: 'drop', F: 'failure' }[s.k] || 'working', s.w, s.r, s.pr || '']))); });
+  download(`lifted-sets-${todayK()}.csv`, rows.map(r => r.map(csvQ).join(',')).join('\n'), 'text/csv'); toast('Sets downloaded');
+};
 A.importData = () => openSheet('imp', 'Restore or import', `<div class="col">${hasV1() ? `<button class="rt" data-act="impV1"><span><b>Bring in data from Form Classic</b><span class="faint small" style="display:block">Found on this phone. Days, workouts, routines and foods.</span></span><span class="chev">${I.chev}</span></button>` : ''}<button class="rt" data-act="impFile"><span><b>Choose a backup file</b><span class="faint small" style="display:block">A Lifted, Form or Form Classic backup (.json)</span></span><span class="chev">${I.chev}</span></button>
   <div class="lab faint small b mt2">OR PASTE IT</div><textarea id="imptxt" placeholder="Paste a backup you copied" style="min-height:110px"></textarea><button class="btn wide" data-act="impPaste">Restore</button></div>`);
 function mergeDays(n) { let c = 0; Object.entries(n.days).forEach(([k, d]) => { const cur = S.days[k]; if (!cur || (!cur.meals.length && !cur.wo)) { S.days[k] = d; c++; } }); n.routines.forEach(r => { if (!S.routines.some(x => x.name === r.name)) S.routines.push(r); }); if (n.profile.start < S.profile.start) S.profile.start = n.profile.start; S.foods.fav = [...S.foods.fav, ...n.foods.fav].slice(0, 80); return c; }

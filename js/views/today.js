@@ -1,6 +1,6 @@
 import { S, R, get, day, touch, scoreOf, streak, level, week } from '../store.js';
 import { todayK, addDays, pdk, esc, fmt, totals, cardioMin, liftDone, nextMoves, routineName, tierOf, TIER_L, WIN, HOLD, MEAL_L, MEALS, DOWL, weightTrend, rankOf } from '../core.js';
-import { $, A, I, avatar, haptic, openSheet, closeSheet } from '../ui.js';
+import { $, A, CH, I, avatar, haptic, openSheet, closeSheet } from '../ui.js';
 import { ring, arings, bars, spark } from '../charts.js';
 import { Social } from '../social.js';
 import { findEx } from '../exercises.js';
@@ -93,10 +93,11 @@ const mealRow = m => `<button class="meal" data-act="mealEdit" data-arg="${m.id}
 A.mealsAll = () => { const d = get(R.day); openSheet('meals', 'Meals', MEALS.map(mt => { const ms = d.meals.filter(m => (m.type || 'snack') === mt); return ms.length ? `<div class="mhead"><span>${MEAL_L[mt]}</span><span>${fmt(ms.reduce((a, m) => a + (+m.cal || 0), 0))} kcal</span></div>${ms.map(mealRow).join('')}` : ''; }).join('')); };
 
 /* ---------- actions ---------- */
+CH.dayAny = el => { if (/^\d{4}-\d{2}-\d{2}$/.test(el.value) && el.value <= todayK()) A.dayGo(el.value); };
 A.dayGo = k => { R.day = k; closeSheet(); vToday(); window.scrollTo(0, 0); };
 A.pickDay = () => {
   const t = todayK(); const ks = Array.from({ length: 14 }, (_, i) => addDays(t, -i));
-  openSheet('pick', 'Jump to a day', `<div class="list">${ks.map(k => { const s = scoreOf(k); return `<button class="li" data-act="dayGo" data-arg="${k}"><span class="ic" style="width:44px;height:44px;background:none">${arings(ringParts(s), 44, 5, 1.5)}</span><span><span class="t">${dayLabel(k)}</span><span class="s">${pdk(k).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}</span></span><span class="r b">${s.logged ? s.total : '–'}</span></button>`; }).join('')}</div>`);
+  openSheet('pick', 'Jump to a day', `<div class="field"><span>Any date</span><input type="date" max="${t}" data-ch="dayAny"></div><div class="list mt">${ks.map(k => { const s = scoreOf(k); return `<button class="li" data-act="dayGo" data-arg="${k}"><span class="ic" style="width:44px;height:44px;background:none">${arings(ringParts(s), 44, 5, 1.5)}</span><span><span class="t">${dayLabel(k)}</span><span class="s">${pdk(k).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}</span></span><span class="r b">${s.logged ? s.total : '–'}</span></button>`; }).join('')}</div>`);
 };
 A.water = n => { const d = day(R.day); d.water = Math.max(0, d.water + +n); touch(R.day); haptic(); vToday(); };
 A.supp = id => { const d = day(R.day); d.supps[id] = !d.supps[id]; touch(R.day); haptic(); vToday(); };
