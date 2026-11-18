@@ -56,14 +56,13 @@ export const I = {
 };
 
 /* ---------- avatars ---------- */
-export const AV_SEEDS = ['Felix', 'Aneka', 'Jade', 'Milo', 'Nala', 'Leo', 'Kai', 'Zoe', 'Remy', 'Iris', 'Theo', 'Luna', 'Omar', 'Sage', 'Ezra', 'Noor', 'Finn', 'Maya'];
+export const AV_SEEDS = ['fox', 'bear', 'panda', 'koala', 'tiger', 'rabbit', 'cat', 'dog', 'owl', 'penguin', 'frog', 'monkey', 'hamster', 'wolf', 'pig', 'lion', 'mouse', 'cow'];
 export const AV_EMO = AV_SEEDS;
-export const AV_BG = ['#c7d2fe', '#fbcfe8', '#bbf7d0', '#fde68a', '#bae6fd', '#ddd6fe', '#fed7aa'];
-// Avatars are Notionists illustrations by Zoish (CC0), served by DiceBear. Only the picked seed name is sent.
-export const avUrl = seed => 'https://api.dicebear.com/9.x/notionists/svg?seed=' + encodeURIComponent(seed || 'Felix');
+export const AV_BG = ['#e8e4dc', '#dfe9e2', '#e1e6ef', '#efe2dc', '#e9e1ec', '#efe9d8', '#2a2a2d'];
+// Avatars are animal faces from Microsoft Fluent Emoji (MIT), stored in assets/avatars.
+export const avUrl = name => 'assets/avatars/' + (AV_SEEDS.includes(name) ? name : AV_SEEDS[[...String(name || 'fox')].reduce((x, c) => x + c.charCodeAt(0), 0) % AV_SEEDS.length]) + '.svg';
 export function avatar(a = {}, size = 'md', name = '') {
-  const seed = a.s || (a.e && /^[A-Za-z]/.test(a.e) ? a.e : '') || AV_SEEDS[[...(name || 'me')].reduce((x, c) => x + c.charCodeAt(0), 0) % AV_SEEDS.length];
-  return `<span class="av ${size}" style="--avbg:${AV_BG[(a.bg ?? 0) % AV_BG.length]}"><img src="${avUrl(seed)}" alt="" loading="lazy"></span>`;
+  return `<span class="av ${size}" style="--avbg:${AV_BG[(a.bg ?? 0) % AV_BG.length]}"><img src="${avUrl(a.s || a.e || name)}" alt="" loading="lazy"></span>`;
 }
 
 /* ---------- sheet ---------- */

@@ -85,9 +85,9 @@ function leagueCard() {
   const me = Social.auth.me, mw = myWeekStats().pts;
   const rows = [{ u: me, pts: mw, me: true }, ...Social.friends.map(f => ({ u: f, pts: fWeek(f) }))].sort((a, b) => b.pts - a.pts);
   const daysLeft = 7 - ((new Date().getDay() + 6) % 7) - 1;
-  return `<div class="card"><div class="chd"><h3>${I.trophy} Weekly league</h3><span class="r">${daysLeft ? daysLeft + ' day' + (daysLeft > 1 ? 's' : '') + ' left' : 'Last day'}</span></div><div class="lb">${rows.map((r, i) => `<button class="lbr ${r.me ? 'me' : ''}" ${r.me ? '' : `data-act="friend" data-arg="${esc(r.u.handle)}"`} style="text-align:left;width:100%"><span class="rk">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}</span>${avatar(r.u.avatar, 'sm', r.u.display)}<span><b>${r.me ? 'You' : name(r.u)}</b><span style="display:block">${r.me ? streak().streak + ' day streak' : statLine(r.u)}</span></span><span class="pts">${fmt(r.pts)}</span></button>`).join('')}</div></div>`;
+  return `<div class="card"><div class="chd"><h3>${I.trophy} Weekly league</h3><span class="r">${daysLeft ? daysLeft + ' day' + (daysLeft > 1 ? 's' : '') + ' left' : 'Last day'}</span></div><div class="lb">${rows.map((r, i) => `<button class="lbr ${r.me ? 'me' : ''}" ${r.me ? '' : `data-act="friend" data-arg="${esc(r.u.handle)}"`} style="text-align:left;width:100%"><span class="rk">${i + 1}</span>${avatar(r.u.avatar, 'sm', r.u.display)}<span><b>${r.me ? 'You' : name(r.u)}</b><span style="display:block">${r.me ? streak().streak + ' day streak' : statLine(r.u)}</span></span><span class="pts">${fmt(r.pts)}</span></button>`).join('')}</div></div>`;
 }
-function statLine(f) { const s = f.stats || {}; const parts = []; if (s.day === todayK()) parts.push(s.score + ' today'); if (s.streak) parts.push(s.streak + '🔥'); if (s.lastWo === todayK()) parts.push('trained'); return parts.join(' · ') || 'Quiet today'; }
+function statLine(f) { const s = f.stats || {}; const parts = []; if (s.day === todayK()) parts.push(s.score + ' today'); if (s.streak) parts.push(s.streak + ' day streak'); if (s.lastWo === todayK()) parts.push('trained'); return parts.join(' · ') || 'Quiet today'; }
 function vsCard() {
   if (!Social.friends.length) return '';
   const mw = myWeekStats().pts;
@@ -100,7 +100,7 @@ function vsCard() {
   <div class="vs"><div class="side">${avatar(me.avatar, 'md', me.display)}<b class="n">${fmt(mw)}</b><span>You · ${myDay} today</span></div><div class="mid">VS</div><button class="side" data-act="friend" data-arg="${esc(rival.handle)}">${avatar(rival.avatar, 'md', rival.display)}<b class="n">${fmt(rw)}</b><span>${first(rival)} · ${theirDay} today</span></button></div>
   <div class="vsbar"><i style="width:${(mw / tot) * 100}%;background:var(--acc)"></i><i style="width:${(rw / tot) * 100}%;background:var(--ink3)"></i></div>
   
-  <div class="row mt">${lead >= 0 ? `<button class="btn sm grow" data-act="sendNudge" data-arg="${esc(rival.handle)}|flex">💪 Flex on ${first(rival)}</button>` : ''}<button class="btn sm ${lead >= 0 ? 'ghost' : ''} grow" data-act="sendNudge" data-arg="${esc(rival.handle)}|nudge">👀 Nudge</button></div></div>`;
+  <div class="row mt">${lead >= 0 ? `<button class="btn sm grow" data-act="sendNudge" data-arg="${esc(rival.handle)}|flex">Flex on ${first(rival)}</button>` : ''}<button class="btn sm ${lead >= 0 ? 'ghost' : ''} grow" data-act="sendNudge" data-arg="${esc(rival.handle)}|nudge">Nudge</button></div></div>`;
 }
 
 /* ---------- feed ---------- */
@@ -114,9 +114,9 @@ function postHTML(p) {
   let body = '';
   if (p.kind === 'workout') body = `<h4>${esc(d.name || 'Workout')}</h4><div class="kv">${d.min ? `<div><small>Time</small><b>${d.min} min</b></div>` : ''}<div><small>Volume</small><b>${fmt(d.vol || 0)} ${esc(d.unit || 'kg')}</b></div><div><small>Sets</small><b>${d.sets || 0}</b></div></div>${(d.prs || []).length ? `<div class="prs">${d.prs.slice(0, 4).map(x => `<span class="prtag" style="margin:0">PR ${esc(x.n)} ${x.w}×${x.r}</span>`).join('')}</div>` : ''}${(d.muscles || []).length ? `<div class="row wrap mt" style="gap:5px">${d.muscles.slice(0, 5).map(m => `<span class="pill">${esc(MUSCLES[m] || m)}</span>`).join('')}</div>` : ''}`;
   else if (p.kind === 'day') body = `<h4>${d.score >= WIN ? 'Won the day' : 'Closed out the day'} · ${d.score}</h4><span class="muted small">${d.streak ? d.streak + ' day streak' : ''}${d.parts ? ' · ' + esc(d.parts) : ''}</span>`;
-  else if (p.kind === 'streak') body = `<h4>🔥 ${d.n} day streak</h4>`;
+  else if (p.kind === 'streak') body = `<h4>${d.n} day streak</h4>`;
   else if (p.kind === 'level') body = `<h4>Reached level ${d.level}</h4><span class="muted small">${esc(d.rank || '')}</span>`;
-  else if (p.kind === 'badge') body = `<h4>🏅 ${esc(d.n)}</h4><span class="muted small">${esc(d.d || '')}</span>`;
+  else if (p.kind === 'badge') body = `<h4>${esc(d.n)}</h4><span class="muted small">${esc(d.d || '')}</span>`;
   else body = `<h4>${esc(p.kind)}</h4>`;
   const rx = p.reactions || {};
   return `<div class="post"><div class="ph">${avatar(u.avatar, 'md', u.display)}<span><b>${p.mine ? 'You' : name(u)}</b><span style="display:block">${ago(p.at)} · ${kindLabel(p.kind)}</span></span>${!p.mine ? `<button class="iconbtn" data-act="friend" data-arg="${esc(u.handle)}" aria-label="Profile">${I.chev}</button>` : ''}</div>
@@ -152,10 +152,10 @@ A.friend = h => {
   const posts = Social.feed.filter(p => p.user.handle === h).slice(0, 6);
   const my = scoreOf(todayK()).total;
   openSheet('friend', '', `<div class="center col" style="align-items:center;gap:6px">${avatar(f.avatar, 'lg', f.display)}<h3 style="font-size:24px;margin-top:6px">${name(f)}</h3><span class="faint small">@${esc(f.handle)} · active ${ago(f.last_seen)}</span></div>
-  <div class="g3 mt2"><div class="stat center"><small>Today</small><b class="n">${today ? s.score || 0 : '–'}</b></div><div class="stat center"><small>Streak</small><b class="n">${s.streak || 0}🔥</b></div><div class="stat center"><small>Level</small><b class="n">${s.level || 1}</b></div></div>
+  <div class="g3 mt2"><div class="stat center"><small>Today</small><b class="n">${today ? s.score || 0 : '–'}</b></div><div class="stat center"><small>Streak</small><b class="n">${s.streak || 0}</b></div><div class="stat center"><small>Level</small><b class="n">${s.level || 1}</b></div></div>
   <div class="card mt"><div class="vs"><div class="side"><b class="n">${my}</b><span>You today</span></div><div class="mid">VS</div><div class="side"><b class="n">${today ? s.score || 0 : 0}</b><span>${first(f)} today</span></div></div>
   <p class="muted small center" style="margin:10px 0 0">${s.lastWo === todayK() ? `${first(f)} trained today${s.woName ? ' (' + esc(s.woName) + ')' : ''}.` : `${first(f)} hasn’t trained today.`} ${liftDone(get(todayK())) ? 'You have.' : S.modules.train ? 'Neither have you.' : ''}</p></div>
-  <div class="g3 mt"><button class="btn ghost" data-act="sendNudge" data-arg="${esc(h)}|nudge">👀 Nudge</button><button class="btn ghost" data-act="sendNudge" data-arg="${esc(h)}|cheer">👏 Cheer</button><button class="btn ghost" data-act="sendNudge" data-arg="${esc(h)}|flex">💪 Flex</button></div>
+  <div class="g3 mt"><button class="btn ghost" data-act="sendNudge" data-arg="${esc(h)}|nudge">Nudge</button><button class="btn ghost" data-act="sendNudge" data-arg="${esc(h)}|cheer">Cheer</button><button class="btn ghost" data-act="sendNudge" data-arg="${esc(h)}|flex">Flex</button></div>
   ${posts.length ? `<div class="sec"><div class="lab">Recent</div><div class="feed">${posts.map(postHTML).join('')}</div></div>` : ''}`, { full: true });
 };
 const NUDGE_MSG = {
@@ -236,7 +236,7 @@ export function awaySheet() {
   const me = liftDone(get(todayK())), myScore = scoreOf(todayK()).total;
   const trained = [...new Map(items.filter(p => p.kind === 'workout' && p.day === todayK()).map(p => [p.user.handle, p])).values()];
   openSheet('away', 'While you were away', `${nud.map(n => `<div class="card tight mb"><div class="inb" style="border:0;padding:0">${avatar(n.from.avatar, 'sm', n.from.display)}<span><b>${nudgeText(n)}</b><span class="faint small" style="display:block">${n.msg ? '“' + esc(n.msg) + '”' : ago(n.at)}</span></span><button class="btn xs" data-act="sendNudge" data-arg="${esc(n.from.handle)}|${n.kind === 'flex' ? 'flex' : 'cheer'}">${n.kind === 'flex' ? 'Flex back' : 'Reply'}</button></div></div>`).join('')}
-  ${trained.length ? `<div class="card"><div class="chd"><h3>${trained.length === 1 ? first(trained[0].user) + ' trained today' : trained.length + ' friends trained today'}</h3><span class="r">${me ? 'So did you 💪' : 'You haven’t yet'}</span></div><div class="list">${trained.map(p => `<div class="li">${avatar(p.user.avatar, 'sm', p.user.display)}<span><span class="t">${name(p.user)} · ${esc(p.data.name || 'Workout')}</span><span class="s">${fmt(p.data.vol || 0)} ${esc(p.data.unit || 'kg')}${(p.data.prs || []).length ? ' · ' + p.data.prs.length + ' PR' : ''}</span></span><button class="rx" data-act="react" data-arg="${p.id}|🔥">🔥</button></div>`).join('')}</div></div>` : ''}
+  ${trained.length ? `<div class="card"><div class="chd"><h3>${trained.length === 1 ? first(trained[0].user) + ' trained today' : trained.length + ' friends trained today'}</h3><span class="r">${me ? 'So did you' : 'You haven’t yet'}</span></div><div class="list">${trained.map(p => `<div class="li">${avatar(p.user.avatar, 'sm', p.user.display)}<span><span class="t">${name(p.user)} · ${esc(p.data.name || 'Workout')}</span><span class="s">${fmt(p.data.vol || 0)} ${esc(p.data.unit || 'kg')}${(p.data.prs || []).length ? ' · ' + p.data.prs.length + ' PR' : ''}</span></span><button class="rx" data-act="react" data-arg="${p.id}|🔥">🔥</button></div>`).join('')}</div></div>` : ''}
   ${items.filter(p => p.kind !== 'workout').slice(0, 5).map(postHTML).join('')}
   <div class="row mt2">${!me && S.modules.train ? `<button class="btn grow" data-act="startPlanned">${I.play} Your turn</button>` : `<button class="btn grow" data-act="closeSheet">${myScore >= WIN ? 'Nice. Keep it going' : 'Let’s go'}</button>`}</div>`);
 }

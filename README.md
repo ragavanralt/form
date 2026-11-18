@@ -32,3 +32,8 @@ The previous version is kept at `classic/`. On first open, Form offers to bring 
 No build step. Serve the folder (`npm start`, then open http://localhost:8080) and edit the files in `js/` and `css/`.
 
 - `npm test` runs the logic tests and the friends server tests. The server tests need PGlite: `npm i --no-save @electric-sql/pglite@0.4.6`. Without it they skip.
+
+## Credits
+
+- Avatars: Microsoft Fluent Emoji (MIT), in assets/avatars.
+- Muscle maps: polygon data adapted from react-body-highlighter by GV79 (MIT).
