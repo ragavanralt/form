@@ -89,3 +89,19 @@ export function spark(vals, o = {}) {
   vals.forEach((y, i) => { if (y == null) return; const x = (i * W) / (vals.length - 1), yy = H - 3 - ((y - lo) / (hi - lo || 1)) * (H - 6); d += (d ? 'L' : 'M') + x.toFixed(1) + ' ' + yy.toFixed(1); });
   return `<svg class="spark" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><path d="${d}" class="lline c-${o.c || 'accent'}"/></svg>`;
 }
+
+// Activity rings in the Apple Fitness style: gradient strokes, rounded caps, dimmed tracks.
+// items: [{f: 0..1+, k: 'fuel'|'train'|'move'}]
+let ringId = 0;
+export function arings(items, size = 150, stroke = 16, gap = 3) {
+  const c = size / 2, id = 'ar' + ++ringId;
+  let defs = '', out = '';
+  items.forEach((it, i) => {
+    const r = c - stroke / 2 - i * (stroke + gap); if (r <= stroke / 2) return;
+    const L = 2 * Math.PI * r, f = Math.max(0, Math.min(1, it.f || 0));
+    defs += `<linearGradient id="${id}${i}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--ring-${it.k})"/><stop offset="1" stop-color="var(--ring-${it.k}2)"/></linearGradient>`;
+    out += `<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="var(--ring-${it.k})" stroke-opacity=".22" stroke-width="${stroke}"/>`;
+    if (f > 0) out += `<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="url(#${id}${i})" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${Math.max(0.01, L * f - 0.01).toFixed(1)} ${L.toFixed(1)}" transform="rotate(-90 ${c} ${c})"/>`;
+  });
+  return `<svg viewBox="0 0 ${size} ${size}" aria-hidden="true"><defs>${defs}</defs>${out}</svg>`;
+}

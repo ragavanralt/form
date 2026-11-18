@@ -1,4 +1,4 @@
-# Realign
+# Pace
 
 Food, training and habits in one daily score. Every day is scored out of 100 from the things you choose to track. 70 is a win, 45 keeps your streak alive. Stack wins to climb levels, and race your friends in a weekly league.
 

@@ -2,7 +2,8 @@
 import { S, save, replaceState, hasV1, readV1, render } from '../store.js';
 import { MODULES, ACTIVITY, suggestTargets, migrateV1, todayK, esc, num, nint, uid, normalize, freshState } from '../core.js';
 import { A, CH, I, $, toast, haptic, confetti, pickFiles } from '../ui.js';
-import { rings } from '../charts.js';
+import { arings as rings0 } from '../charts.js';
+const rings = (it, size) => rings0(it.map((x, i) => ({ f: x.f, k: ['fuel', 'train', 'move'][i] })), size, 20, 5);
 import { PROGRAMS, findEx } from '../exercises.js';
 import { applyProgram } from './train.js';
 import { aiOn, setGemKey, testKey, planFromText, errMsg, gemKey } from '../ai.js';
@@ -23,7 +24,7 @@ function opt(act, arg, on, icon, c, title, sub) { return `<button class="opt c-$
 function draw() {
   const s = STEPS[OB.i], P = S.profile; let h = '';
   if (s === 'welcome') {
-    h = `<div class="hello">${rings([{ f: 0.82, c: 'food' }, { f: 0.64, c: 'train' }, { f: 0.9, c: 'move' }], 220, 18, 6)}<h1>Realign</h1><p>Food, training and habits in one daily score. Simple enough to open every day.</p></div>
+    h = `<div class="hello">${rings([{ f: 0.82, c: 'food' }, { f: 0.64, c: 'train' }, { f: 0.9, c: 'move' }], 220, 18, 6)}<h1>Pace</h1><p>Food, training and habits in one daily score. Simple enough to open every day.</p></div>
     <div class="col" style="gap:14px"><div class="feat"><span class="fi">${I.cam}</span><span><b>Snap your food</b><span>AI finds every item, sizes the portion and shows you exactly what it saw.</span></span></div>
     <div class="feat"><span class="fi">${I.dumb}</span><span><b>Train smarter</b><span>Routines, PRs, progressive overload hints and muscle maps for 100+ exercises.</span></span></div>
     <div class="feat"><span class="fi">${I.users}</span><span><b>Better with friends</b><span>See when they train, nudge them, and race a weekly league. Or keep it all private.</span></span></div></div>
@@ -162,5 +163,5 @@ A.obV1 = () => {
 A.obRestore = async () => {
   const [f] = await pickFiles('application/json,.json'); if (!f) return;
   try { const j = JSON.parse(await f.text()); const st = j.form2 ? j.state : j.form && j.state ? migrateV1(j.state, n2 => { const x = findEx(n2); return x ? { m: x.p[0] } : null; }) : j.v === 2 ? j : null; if (!st) throw 0; replaceState(normalize(st)); S.onboarded = true; save(); $('#onboard').hidden = true; render(); toast('Backup restored'); }
-  catch (e) { toast('That file isn’t a Realign backup'); }
+  catch (e) { toast('That file isn’t a Pace backup'); }
 };

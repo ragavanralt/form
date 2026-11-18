@@ -1,7 +1,7 @@
 // Friends: account, weekly league, head-to-head, feed with reactions, nudges/flexes, "while you were away", day recap.
 import { S, R, get, day, touch, render, scoreOf, streak, level, week, hist, afterSave, save } from '../store.js';
 import { todayK, addDays, wkStart, pdk, esc, fmt, num, tierOf, TIER_L, WIN, rankOf, liftDone, achievements } from '../core.js';
-import { A, CH, I, $, openSheet, setSheet, closeSheet, toast, haptic, avatar, ago, share, confetti, AV_EMO, AV_BG } from '../ui.js';
+import { A, CH, I, $, openSheet, setSheet, closeSheet, toast, haptic, avatar, ago, share, confetti, AV_EMO, AV_BG, avUrl } from '../ui.js';
 import { Social, ping, signup, login, logout, updateMe, loadFriends, addFriend, respond, loadFeed, post, react, nudge, loadInbox, inboxSeen, socialErr, deleteMe } from '../social.js';
 import { findEx, MUSCLES } from '../exercises.js';
 
@@ -37,7 +37,7 @@ function joinHTML() {
 }
 A.joinSheet = () => {
   const a = S.profile.avatar || { e: AV_EMO[0], bg: 0 }; S.profile.avatar = a;
-  openSheet('join', 'Your profile', `<div class="center">${avatar(a, 'lg')}</div><div class="avpick mt">${AV_EMO.map(e => `<button class="${a.e === e ? 'on' : ''}" data-act="avE" data-arg="${e}">${e}</button>`).join('')}</div><div class="swatches mt" style="justify-content:center">${AV_BG.map((b, i) => `<button style="background:${b}" class="${a.bg === i ? 'on' : ''}" data-act="avB" data-arg="${i}" aria-label="Colour ${i + 1}"></button>`).join('')}</div>
+  openSheet('join', 'Your profile', `<div class="center">${avatar(a, 'lg')}</div><div class="avpick mt">${AV_EMO.map(e => `<button class="${a.e === e ? 'on' : ''}" data-act="avE" data-arg="${e}" style="--avbg:${AV_BG[a.bg % AV_BG.length]}"><img src="${avUrl(e)}" alt="" loading="lazy"></button>`).join('')}</div><div class="swatches mt" style="justify-content:center">${AV_BG.map((b, i) => `<button style="background:${b}" class="${a.bg === i ? 'on' : ''}" data-act="avB" data-arg="${i}" aria-label="Colour ${i + 1}"></button>`).join('')}</div>
   <div class="field mt2"><span>Display name</span><input id="jdn" value="${esc(S.profile.name)}" placeholder="Alex"></div>
   <div class="field mt"><span>Username</span><input id="jh" placeholder="alex_lifts" autocapitalize="off" autocorrect="off" value="${esc((S.profile.name || '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 16))}"></div>
   <p class="faint small">Friends add you by username. You’ll get a sign-in code for your other devices.</p><div id="jerr"></div><button class="btn wide mt" data-act="joinGo">Create profile</button>`);
@@ -65,7 +65,7 @@ A.inviteSheet = () => openSheet('invite', 'Add friends', `<div class="card tight
   <div class="row mt"><button class="btn grow" data-act="shareInvite">${I.share} Share link</button><button class="btn ghost" data-act="copyInvite" aria-label="Copy">${I.copy}</button></div>
   <div class="sec"><div class="lab">Or add by username</div><div class="row"><input id="addh" placeholder="username" autocapitalize="off" autocorrect="off"><button class="btn" data-act="addGo">Add</button></div><div id="adderr"></div></div>
   ${Social.outgoing.length ? `<div class="sec"><div class="lab">Waiting on</div><div class="list">${Social.outgoing.map(u => `<div class="li">${avatar(u.avatar, 'sm', u.display)}<span><span class="t">${name(u)}</span><span class="s">@${esc(u.handle)}</span></span><span class="pill">Pending</span></div>`).join('')}</div></div>` : ''}`);
-A.shareInvite = () => share(`Add me on Realign, the fitness app I’m using. Let’s keep each other honest: ${link()}`, 'Join me on Realign');
+A.shareInvite = () => share(`Add me on Pace, the fitness app I’m using. Let’s keep each other honest: ${link()}`, 'Join me on Pace');
 A.copyInvite = async () => { try { await navigator.clipboard.writeText(link()); toast('Link copied'); } catch (e) { toast('Copy failed'); } };
 A.addGo = async (a, btn) => { const hd = ($('#addh').value || '').trim().replace(/^@/, ''); if (!hd) return; btn.disabled = true; try { const r = await addFriend(hd); toast(r.status === 'accepted' ? 'You’re now friends' : 'Request sent'); await loadFriends(); A.inviteSheet(); render(); } catch (e) { btn.disabled = false; $('#adderr').innerHTML = `<div class="err mt">${esc(socialErr(e))}</div>`; } };
 export async function handleAddParam() {
@@ -207,14 +207,14 @@ A.closeDay = () => {
   const fr = Social.on ? Social.friends.map(f => ({ f, s: (f.stats || {}).day === k ? (f.stats || {}).score || 0 : null })).filter(x => x.s != null).sort((a, b) => b.s - a.s) : [];
   const beat = fr.filter(x => x.s < sc.total).length;
   openSheet('recap', '', `<div class="center col" style="align-items:center;gap:4px"><span class="pill ${tier}">${TIER_L[tier]}</span><div style="font-size:84px;font-weight:800;letter-spacing:-.05em;line-height:1" class="n">${sc.total}</div><span class="muted">${k === todayK() ? 'Today' : pdk(k).toLocaleDateString('en-CA', { weekday: 'long', month: 'short', day: 'numeric' })} · ${st.streak} day streak</span></div>
-  <div class="card mt2"><div class="legend">${sc.parts.map(p => `<div class="lg c-${p.c}"><i></i><span>${p.n}</span><b>${Math.round(p.pts)}<span class="faint">/${Math.round(p.w)}</span></b></div>`).join('')}</div></div>
+  <div class="card mt2"><div class="list">${sc.parts.map(p => `<div class="li noic"><span class="t">${p.n}</span><span class="r" style="color:${p.f >= 0.999 ? 'var(--win)' : 'var(--ink3)'}">${p.f >= 0.999 ? 'Done' : p.f > 0 ? 'Partly' : 'Not yet'}</span></div>`).join('')}</div></div>
   ${fr.length ? `<div class="card mt"><div class="chd"><h3>Friends today</h3><span class="r">${beat ? 'You beat ' + beat : 'Not your day'}</span></div><div class="list">${fr.slice(0, 5).map(x => `<div class="li">${avatar(x.f.avatar, 'sm', x.f.display)}<span><span class="t">${name(x.f)}</span></span><span class="r b">${x.s}</span></div>`).join('')}</div></div>` : ''}
   <div class="row mt2">${Social.on && S.settings.share.scores ? `<button class="btn grow" data-act="postDay" data-arg="${k}">${I.send} Post to friends</button>` : ''}<button class="btn ${Social.on ? 'ghost' : ''} grow" data-act="shareDay" data-arg="${k}">${I.share} Share</button></div>
   ${wasClosed || k !== todayK() ? '' : '<p class="faint small center mt">You can still log after closing. The score updates.</p>'}`);
   render();
 };
 A.postDay = async k => { const sc = scoreOf(k); try { await post('day', k, '', { score: sc.total, streak: streak().streak, parts: sc.parts.filter(p => p.f >= 0.99).map(p => p.n).join(', ') }); toast('Posted'); haptic(); closeSheet(); loadFeed().catch(() => {}); } catch (e) { toast(socialErr(e)); } };
-A.shareDay = k => { const sc = scoreOf(k), st = streak(); share(`Realign: ${sc.total}/100 today (${TIER_L[tierOf(sc.total)]}). ${st.streak} day streak 🔥`); };
+A.shareDay = k => { const sc = scoreOf(k), st = streak(); share(`Pace: ${sc.total}/100 today (${TIER_L[tierOf(sc.total)]}). ${st.streak} day streak 🔥`); };
 
 /* ---------- refresh + away sheet ---------- */
 export async function refresh() {

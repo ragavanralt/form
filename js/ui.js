@@ -56,11 +56,14 @@ export const I = {
 };
 
 /* ---------- avatars ---------- */
-export const AV_EMO = ['🦁', '🐺', '🦅', '🐯', '🦊', '🐻', '🦈', '🐉', '🦍', '🐆', '🦬', '🐼', '⚡', '🔥', '🌊', '🌙', '⭐', '🏔️'];
-export const AV_BG = ['linear-gradient(135deg,#7c5cff,#3b82f6)', 'linear-gradient(135deg,#ff6b35,#ff3d71)', 'linear-gradient(135deg,#2fd47a,#14b8a6)', 'linear-gradient(135deg,#f5c451,#ff8a3d)', 'linear-gradient(135deg,#ec4899,#8b5cf6)', 'linear-gradient(135deg,#3ab7ff,#5b7cff)', 'linear-gradient(135deg,#27272a,#52525b)'];
+export const AV_SEEDS = ['Felix', 'Aneka', 'Jade', 'Milo', 'Nala', 'Leo', 'Kai', 'Zoe', 'Remy', 'Iris', 'Theo', 'Luna', 'Omar', 'Sage', 'Ezra', 'Noor', 'Finn', 'Maya'];
+export const AV_EMO = AV_SEEDS;
+export const AV_BG = ['#c7d2fe', '#fbcfe8', '#bbf7d0', '#fde68a', '#bae6fd', '#ddd6fe', '#fed7aa'];
+// Avatars are Notionists illustrations by Zoish (CC0), served by DiceBear. Only the picked seed name is sent.
+export const avUrl = seed => 'https://api.dicebear.com/9.x/notionists/svg?seed=' + encodeURIComponent(seed || 'Felix');
 export function avatar(a = {}, size = 'md', name = '') {
-  const e = a.e || (name ? name.trim()[0].toUpperCase() : '🙂');
-  return `<span class="av ${size}" style="--avbg:${AV_BG[(a.bg ?? 0) % AV_BG.length]}">${esc(e)}</span>`;
+  const seed = a.s || (a.e && /^[A-Za-z]/.test(a.e) ? a.e : '') || AV_SEEDS[[...(name || 'me')].reduce((x, c) => x + c.charCodeAt(0), 0) % AV_SEEDS.length];
+  return `<span class="av ${size}" style="--avbg:${AV_BG[(a.bg ?? 0) % AV_BG.length]}"><img src="${avUrl(seed)}" alt="" loading="lazy"></span>`;
 }
 
 /* ---------- sheet ---------- */
@@ -116,7 +119,7 @@ export function confetti(n = 120) {
 /* ---------- small html helpers ---------- */
 export const toggle = (act, on, arg = '') => `<button class="toggle ${on ? 'on' : ''}" data-act="${act}" data-arg="${esc(arg)}" role="switch" aria-checked="${on}"></button>`;
 export const ago = iso => { const s = (Date.now() - new Date(iso)) / 1000; if (s < 60) return 'now'; if (s < 3600) return Math.floor(s / 60) + 'm'; if (s < 86400) return Math.floor(s / 3600) + 'h'; if (s < 604800) return Math.floor(s / 86400) + 'd'; return new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }); };
-export async function share(text, title = 'Realign') { try { if (navigator.share) { await navigator.share({ title, text }); return true; } } catch (e) { return false; } try { await navigator.clipboard.writeText(text); toast('Copied'); return true; } catch (e) { return false; } }
+export async function share(text, title = 'Pace') { try { if (navigator.share) { await navigator.share({ title, text }); return true; } } catch (e) { return false; } try { await navigator.clipboard.writeText(text); toast('Copied'); return true; } catch (e) { return false; } }
 export function download(name, text, type = 'application/json') { const b = new Blob([text], { type }); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); }
 export function pickFiles(accept = 'image/*', multiple = false, capture = false) {
   return new Promise(res => { const i = document.createElement('input'); i.type = 'file'; i.accept = accept; i.multiple = multiple; if (capture) i.setAttribute('capture', 'environment'); i.onchange = () => res([...i.files]); i.click(); });

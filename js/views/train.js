@@ -9,7 +9,7 @@ import { aiOn, importWorkouts, errMsg } from '../ai.js';
 import { postWorkout } from './friends.js';
 
 const exInfo = n => findEx(n, S.customEx) || { n, p: ['other'], s: [], e: '', c: '' };
-const thumb = n => { const x = exInfo(n); return bodyMap(x.p, x.s, { only: ['lats', 'upper', 'lower', 'traps', 'rdelt', 'triceps', 'glutes', 'hams'].includes(x.p[0]) ? 'back' : 'front' }); };
+const thumb = n => { const x = exInfo(n); return bodyMap(x.p, x.s, { only: ['lats', 'upper', 'lower', 'traps', 'rdelt', 'triceps', 'glutes', 'hams'].includes(x.p[0]) ? 'back' : 'front', crop: true }); };
 const unit = () => S.profile.units || 'kg';
 
 export function vTrain() {
