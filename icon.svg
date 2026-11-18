@@ -1,10 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14231f"/><stop offset="1" stop-color="#050807"/></linearGradient>
-    <linearGradient id="a" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#2fd47a"/><stop offset="1" stop-color="#9df5c2"/></linearGradient>
-  </defs>
-  <rect width="512" height="512" fill="url(#bg)"/>
-  <!-- Pace: one steady ring, almost closed. -->
-  <circle cx="256" cy="256" r="150" fill="none" stroke="#2fd47a" stroke-opacity=".16" stroke-width="56"/>
-  <circle cx="256" cy="256" r="150" fill="none" stroke="url(#a)" stroke-width="56" stroke-linecap="round" stroke-dasharray="754 943" transform="rotate(-90 256 256)"/>
+  <rect width="512" height="512" fill="#080808"/>
+  <!-- Pace: a segmented volt ring, like a rep counter. -->
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#2b2b2b" stroke-width="60" stroke-dasharray="39.3 7.8"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#d4ff3a" stroke-width="60" stroke-dasharray="39.3 7.8 39.3 7.8 39.3 7.8 39.3 7.8 39.3 7.8 39.3 7.8 39.3 7.8 39.3 7.8 39.3 7.8 39.3 7.8 39.3 7.8 39.3 7.8 39.3 7.8 39.3 7.8 39.3 7.8 0 1000" transform="rotate(-90 256 256)"/>
 </svg>
