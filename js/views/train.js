@@ -340,17 +340,42 @@ A.imSave = () => {
 /* ---------- ghost race: you vs your last session of each exercise ---------- */
 function ghostSets(name) { const k = curK(); const last = (hist().map[name] || []).filter(r => r.date < k).at(-1); return last ? last.sets : null; }
 const vol = sets => sets.reduce((a, s) => a + num(s.w) * num(s.r), 0);
+// The ghost lifts last time's volume at last time's pace: it starts at 0 when you start and moves
+// every second, finishing at last time's total after last time's duration (or ~2.5 min a set if unknown).
 function ghostOf(w) {
-  let G = 0, Y = 0, any = false;
-  w.ex.forEach(e => { const g = ghostSets(e.name); if (!g) return; any = true; G += vol(g); Y += vol(e.sets.filter(s => s.done && s.k !== 'W')); });
-  return any ? { G, Y } : null;
+  let G = 0, Y = 0, n = 0, any = false;
+  w.ex.forEach(e => { const g = ghostSets(e.name); if (!g) return; any = true; G += vol(g); n += g.length; Y += vol(e.sets.filter(s => s.done && s.k !== 'W')); });
+  if (!any) return null;
+  const prev = hist().sessions.filter(x => x.name === w.name && x.date < curK()).at(-1);
+  const dur = prev && prev.dur >= 10 * 60000 && prev.dur <= 4 * 3600000 ? prev.dur : Math.max(10, n) * 150000;
+  const live = !EDK && w.status === 'active' && w.start;
+  const at = live ? Math.round(G * Math.min(1, Math.max(0, Date.now() - w.start) / dur)) : G;
+  return { G, Y, at, live };
+}
+function ghostText(g) {
+  const u = unit();
+  if (g.Y >= g.G && g.Y) return `You passed last time’s total by <b class="up">${fmt(g.Y - g.G)} ${u}</b>`;
+  if (!g.live) return `Last time’s volume. ${fmt(g.G - g.Y)} ${u} to pass it`;
+  const d = g.Y - g.at;
+  return (d === 0 ? 'Neck and neck with your ghost' : d > 0 ? `Ahead of your ghost by <b class="up">${fmt(d)} ${u}</b>` : `Ghost is <b class="down">${fmt(-d)} ${u}</b> ahead`) + ` · finish line ${fmt(g.G)}`;
 }
 function ghostBar(w) {
   if (!on('ghost')) return '';
   const g = ghostOf(w); if (!g) return '';
-  const max = Math.max(g.G, g.Y, 1), lead = g.Y - g.G;
-  return `<div class="race mt"><div class="lane"><span>You</span><div class="track"><i style="width:${(g.Y / max) * 100}%;background:var(--acc)"></i></div><b class="n">${fmt(g.Y)}</b></div><div class="lane ghost"><span>Ghost</span><div class="track"><i style="width:${(g.G / max) * 100}%"></i></div><b class="n">${fmt(g.G)}</b></div><div class="faint tiny" style="margin-top:4px">${lead >= 0 && g.Y ? `Ahead of last time by ${fmt(lead)} ${unit()}` : `Last time’s volume. ${fmt(g.G - g.Y)} ${unit()} to pass it`}</div></div>`;
+  const max = Math.max(g.G, g.Y, 1);
+  return `<div class="race mt ${g.live ? 'live' : ''}" id="race"><div class="lane"><span>You</span><div class="track"><i style="width:${(g.Y / max) * 100}%;background:var(--acc)"></i></div><b class="n">${fmt(g.Y)}</b></div><div class="lane ghost"><span>Ghost</span><div class="track"><i id="ghI" style="width:${(g.at / max) * 100}%"></i></div><b class="n" id="ghN">${fmt(g.at)}</b></div><div class="faint tiny" id="ghT" style="margin-top:4px">${ghostText(g)}</div></div>`;
 }
+// Every second while the live workout is open: move the ghost and the workout clock.
+function liveTick() {
+  if (Sheet.kind !== 'session' || EDK || $('#sheetwrap').hidden) return;
+  const w = activeWo(); if (!w) return;
+  const el = $('#welap'); if (el) el.textContent = elapsed(w.start);
+  if (!$('#race') || !on('ghost')) return;
+  const g = ghostOf(w); if (!g) return;
+  const max = Math.max(g.G, g.Y, 1);
+  $('#ghI').style.width = (g.at / max) * 100 + '%'; $('#ghN').textContent = fmt(g.at); $('#ghT').innerHTML = ghostText(g);
+}
+setInterval(liveTick, 1000);
 function ghostDelta(e) {
   if (!on('ghost')) return '';
   const g = ghostSets(e.name), mine = e.sets.filter(s => s.done && s.k !== 'W'); if (!g || !mine.length) return '';

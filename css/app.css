@@ -947,6 +947,8 @@ body::before{content:"";position:fixed;inset:-20% -10% auto;height:70vh;pointer-
 .lane .track{height:10px;border-radius:99px;background:var(--s3);overflow:hidden}.lane .track i{display:block;height:100%;border-radius:99px;background:var(--ink3);transition:width .5s}
 .lane b{text-align:right;color:var(--ink);font-size:15px}.lane.ghost b{color:var(--ink3)}
 .race{background:var(--s2);border-radius:16px;padding:10px 12px;display:grid;gap:6px}.race .lane{grid-template-columns:48px minmax(0,1fr) 64px}
+/* the live race stays in view under the sheet title while you scroll through sets */
+.sheet .race.live{position:sticky;top:var(--race-top,44px);z-index:2;background:color-mix(in srgb,var(--s2) 92%,var(--bg));box-shadow:0 0 0 6px var(--bg)}
 
 /* duo streak */
 .duoc{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;text-align:left;padding:14px 16px}
