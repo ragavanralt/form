@@ -1,6 +1,7 @@
 // Settings: profile, modules, targets, appearance, AI, friends and privacy, reminders, data.
 import { S, save, touch, render, replaceState, hasV1, readV1, KEY } from '../store.js';
-import { MODULES, ACTIVITY, suggestTargets, weights, PART, esc, fmt, nint, num, todayK, migrateV1, normalize, freshState, addDays, pdk, totals, score } from '../core.js';
+import { MODULES, ACTIVITY, suggestTargets, weights, PART, esc, fmt, nint, num, todayK, migrateV1, normalize, freshState, addDays, pdk, totals, score, FEATURES } from '../core.js';
+import { Push, pushOn, pushOff, pushOnNow, pushErr, pushCan, standalone, isIOS, pushSync } from '../push.js';
 import { A, CH, I, $, openSheet, setSheet, closeSheet, toast, toggle, download, pickFiles, avatar, avPicker } from '../ui.js';
 import { aiLabel, gemKey, setGemKey, testKey, errMsg } from '../ai.js';
 import { Social, socialErr } from '../social.js';
@@ -19,9 +20,10 @@ const row = (act, ic, c, t, s, r = `<span class="chev">${I.chev}</span>`, arg = 
 
 A.settings = () => {
   const P = S.profile, me = Social.auth && Social.auth.me;
-  openSheet('settings', 'Settings', `<button class="card tight row" data-act="setProfile" style="width:100%;text-align:left;gap:12px">${avatar(me ? me.avatar : P.avatar || {}, 'md', P.name)}<span class="grow"><b style="display:block">${esc(P.name || 'Your profile')}</b><span class="faint small">${me ? '@' + esc(me.handle) + ' · ' : ''}${{ cut: 'Losing fat', maintain: 'Maintaining', bulk: 'Building muscle' }[P.goal]}</span></span><span class="chev">${I.chev}</span></button>
+  openSheet('settings', 'Settings', `<button class="card tight row" data-act="setProfile" style="width:100%;text-align:left;gap:12px">${avatar(me ? me.avatar : P.avatar || {}, 'md', P.name)}<span class="grow"><b style="display:block">${esc(P.name || 'Your profile')}</b>${P.avatar && P.avatar.ti ? `<span class="ttl sm">${esc(P.avatar.ti)}</span> ` : ''}<span class="faint small">${me ? '@' + esc(me.handle) + ' · ' : ''}${{ cut: 'Losing fat', maintain: 'Maintaining', bulk: 'Building muscle' }[P.goal]}</span></span><span class="chev">${I.chev}</span></button>
   <div class="sec"><div class="lab">Your app</div><div class="card tight"><div class="list">
     ${row('setModules', I.list, 'accent', 'What I track', MODULES.filter(m => S.modules[m.id]).map(m => m.n).join(', '))}
+    ${row('setFeatures', I.spark, 'habit', 'Features', FEATURES.filter(f => S.settings.features[f.id] !== false).length + ' of ' + FEATURES.length + ' on')}
     ${row('setTargets', I.target, 'food', 'Targets', `${fmt(S.targets.cal)} kcal · ${S.targets.pro} g protein`)}
     ${row('setScore', I.chart, 'train', 'How scoring works', 'What each part is worth')}
     ${row('setLook', I.moon, 'habit', 'Appearance', { system: 'Auto', dark: 'Dark', light: 'Light' }[S.settings.theme] || 'Dark')}
@@ -29,8 +31,9 @@ A.settings = () => {
   <div class="sec"><div class="lab">Smart features</div><div class="card tight"><div class="list">
     ${row('setAI', I.spark, 'accent', 'AI', aiLabel())}
     ${row('setFriends', I.users, 'move', 'Friends and privacy', Social.on ? 'Signed in as @' + esc(me.handle) : 'Not signed in')}
-    ${row('setRemind', I.bell, 'water', 'Reminders', S.settings.remind.on ? 'On, in your calendar' : 'Off')}
+    ${row('setRemind', I.bell, 'water', 'Notifications', pushOnNow() ? 'On' : S.settings.remind.on ? 'Calendar reminders' : 'Off')}
     ${row('setTraining', I.dumb, 'train', 'Workout settings', S.settings.rest + ' s rest · ' + P.units)}
+    ${S.settings.features.loot !== false ? row('rewards', I.star, 'body', 'Rewards', (S.loot.items.length ? S.loot.items.length + ' earned' : 'Titles, frames, streak freezes') + (S.loot.crates.some(c => !c.open) ? ' · new' : '')) : ''}
   </div></div></div>
   <div class="sec"><div class="lab">Data</div><div class="card tight"><div class="list">
     ${row('exportData', I.upload, 'habit', 'Back up', 'Download everything as a file')}
@@ -101,10 +104,36 @@ A.sOut = async () => { await socialSignOut(); toast('Signed out'); A.setFriends(
 A.sDel = async () => { if (!confirm('Delete your friends profile, posts and reactions from the server? Your log on this phone stays.')) return; try { await socialDelete(); toast('Account deleted'); A.setFriends(); } catch (e) { toast(socialErr(e)); } };
 
 /* ---------- reminders (calendar file: iPhone web apps can't schedule notifications) ---------- */
-A.setRemind = () => { const R2 = S.settings.remind; openSheet('rem', 'Reminders', `<p class="muted small" style="margin-top:-6px">Web apps on iPhone can’t schedule their own alerts yet, so Lifted adds them to your Calendar instead. Download once, tap Add All.</p>
-  <div class="card tight"><div class="list">${[['morning', 'Morning check-in', 'Plan the day and log breakfast'], ['gym', 'Training days', 'On days you have a workout'], ['evening', 'Close out', 'Log what’s left and see your score']].map(([k, t, s]) => `<div class="li noic"><span><span class="t">${t}</span><span class="s">${s}</span></span><input type="time" value="${R2[k]}" data-ch="remT" data-k="${k}" style="width:118px;padding:8px"></div>`).join('')}</div></div>
-  <button class="btn wide mt2" data-act="remDl">${I.calendar} Add to Calendar</button><p class="faint small center">Change the times, then add again. Delete the old ones from Calendar.</p>`); };
-CH.remT = el => { S.settings.remind[el.dataset.k] = el.value; save(); };
+A.setRemind = () => {
+  const R2 = S.settings.remind, N = S.settings.notif = S.settings.notif || {}, onNow = pushOnNow();
+  const blocked = typeof Notification !== 'undefined' && Notification.permission === 'denied';
+  const kinds = [['remind', 'Reminders', 'Morning plan, training days, closing out the day'], ['streak', 'Streak at risk', 'An evening heads-up if today doesn’t count yet'], ['drop', 'Daily Drop', 'Tells you what today’s challenge is'], ['friends', 'Friends', 'Nudges, reactions, your duo partner']];
+  const top = onNow ? `<div class="card tight"><div class="li noic"><span><span class="t">Phone notifications</span><span class="s">On for this phone</span></span>${toggle('pushT', true)}</div></div>`
+    : isIOS() && !standalone() ? `<div class="note">On iPhone, notifications only work from the Home Screen app. Tap Share → Add to Home Screen, open Lifted from there, then come back here.</div>`
+    : !pushCan() ? `<div class="note">This browser can’t show notifications. Calendar reminders below still work.</div>`
+    : `<button class="btn wide" data-act="pushT">${I.bell} Turn on notifications</button>${blocked ? '<p class="faint small center">Blocked in your phone’s settings. Allow them for Lifted there first.</p>' : ''}`;
+  openSheet('rem', 'Notifications', `${top}
+  <div class="sec"><div class="lab">What to send</div><div class="card tight"><div class="list">${kinds.map(([k, t, s2]) => `<div class="li noic"><span><span class="t">${t}</span><span class="s">${s2}</span></span>${toggle('notifT', N[k] !== false, k)}</div>`).join('')}</div></div></div>
+  <div class="sec"><div class="lab">Times</div><div class="card tight"><div class="list">${[['morning', 'Morning'], ['gym', 'Training reminder'], ['evening', 'Evening check']].map(([k, t]) => `<div class="li noic"><span class="t">${t}</span><input type="time" value="${R2[k]}" data-ch="remT" data-k="${k}" style="width:136px;padding:8px"></div>`).join('')}</div></div><p class="faint small">No friend pings between 10:30 pm and 8 am.</p></div>
+  <div class="sec"><div class="lab">No notifications?</div><button class="btn line wide" data-act="remDl">${I.calendar} Add reminders to Calendar instead</button></div>`, { full: true });
+};
+A.pushT = async (a, btn) => {
+  if (pushOnNow()) { await pushOff(); toast('Notifications off'); A.setRemind(); return; }
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Turning on…'; }
+  try { await pushOn(); toast('Notifications on'); } catch (e) { toast(pushErr(e)); }
+  A.setRemind();
+};
+A.notifT = k => { const N = S.settings.notif = S.settings.notif || {}; N[k] = N[k] === false; save(); pushSync(); A.setRemind(); };
+
+/* ---------- features ---------- */
+A.setFeatures = () => {
+  const F = S.settings.features, groups = [...new Set(FEATURES.map(f => f.g))];
+  openSheet('feat', 'Features', `<p class="muted small" style="margin-top:-6px">Turn off anything you don’t want. Your data stays; it just stops showing.</p>
+  ${groups.map(g => `<div class="sec"><div class="lab">${g}</div><div class="card tight"><div class="list">${FEATURES.filter(f => f.g === g).map(f => `<div class="li noic"><span><span class="t">${f.n}</span><span class="s">${f.d}</span></span>${toggle('featT', F[f.id] !== false, f.id)}</div>`).join('')}</div></div></div>`).join('')}
+  <button class="btn wide mt2" data-act="settings">Done</button>`, { full: true });
+};
+A.featT = id => { const F = S.settings.features; F[id] = F[id] === false; save(); render(); pushSync(); A.setFeatures(); };
+CH.remT = el => { S.settings.remind[el.dataset.k] = el.value; save(); pushSync(); };
 A.remDl = () => {
   const R2 = S.settings.remind, stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z'), t = todayK().replace(/-/g, ''), ev = [];
   const add = (id, hm, title, desc, rule) => { const m = /^(\d{1,2}):(\d{2})$/.exec(hm || ''); if (!m) return; ev.push(['BEGIN:VEVENT', `UID:form2-${id}-${t}@form`, 'DTSTAMP:' + stamp, `DTSTART:${t}T${m[1].padStart(2, '0')}${m[2]}00`, 'DURATION:PT10M', 'RRULE:' + rule, 'SUMMARY:' + title, 'DESCRIPTION:' + desc, 'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + title, 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT'].join('\r\n')); };

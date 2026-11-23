@@ -1,10 +1,14 @@
-import { S, R, get, day, touch, scoreOf, streak, level, week } from '../store.js';
+import { S, R, get, day, touch, scoreOf, streak, level, week, on } from '../store.js';
 import { todayK, addDays, pdk, esc, fmt, totals, cardioMin, liftDone, nextMoves, routineName, tierOf, TIER_L, WIN, HOLD, MEAL_L, MEALS, DOWL, weightTrend, rankOf } from '../core.js';
 import { $, A, CH, I, avatar, haptic, openSheet, closeSheet } from '../ui.js';
 import { ring, arings, bars, spark } from '../charts.js';
 import { Social } from '../social.js';
 import { findEx } from '../exercises.js';
 import { bodyMap } from '../body.js';
+import { buildCard, dropCard, ghostWeekCard } from './daily.js';
+import { duoCard } from './friends.js';
+import { seasonOf, seasonStats } from '../season.js';
+import { exDrawing } from '../draw.js';
 
 R.day = todayK();
 const dayLabel = k => (k === todayK() ? 'Today' : k === addDays(todayK(), -1) ? 'Yesterday' : pdk(k).toLocaleDateString('en-CA', { weekday: 'long' }));
@@ -28,23 +32,28 @@ export function vToday() {
     <button data-act="settings" aria-label="Settings">${avatar(me ? me.avatar : S.profile.avatar || {}, 'md', S.profile.name)}</button></div></div>`;
 
   // Hero: the day score as a big gauge, with streak and level beside it.
-  h += `<button class="hero3" data-act="closeDay"><div class="gauge">${ring(sc.total / 100, 'accent', 168, 14, `<b>${sc.total}</b><small>day score</small>`)}</div>
+  const se = on('seasons') ? seasonOf(k) : null, ss = se ? seasonStats(S, se.n, k) : null;
+  h += `<div class="hero4"><button class="gauge" data-act="closeDay">${ring(sc.total / 100, 'accent', 156, 13, `<b>${sc.total}</b><small>day score</small>`)}</button>
     <div class="hstats"><span class="pill ${tier}">${TIER_L[tier]}</span>
-      <div class="hs"><span class="flame ${st.streak ? '' : 'cold'}">${I.flame}</span><b>${st.streak}</b><small>day streak</small></div>
-      <div class="hs"><span class="lvl">${lv.level}</span><b>${rankOf(lv.level)}</b><small>${Math.round(lv.frac * 100)}% to ${lv.level + 1}</small></div></div></button>`;
+      ${on('streak') ? `<button class="hs" data-act="streakInfo"><span class="flame ${st.streak ? '' : 'cold'}">${I.flame}</span><b>${st.streak}</b><small>day streak${st.atRisk && isT ? ' · at risk' : ''}</small></button>` : ''}
+      ${on('levels') ? `<button class="hs" data-act="levelInfo"><span class="lvl">${lv.level}</span><b>${rankOf(lv.level)}</b><small>${Math.floor(lv.frac * 100)}% to ${lv.level + 1}</small></button>` : ''}
+      ${ss ? `<button class="hs" data-act="seasonSheet"><span class="tierdot" style="--tc:${ss.tier[2]}"></span><b>${ss.tier[0]}</b><small>Season ${se.n} · ${se.left ? se.left + ' days left' : 'last day'}</small></button>` : ''}</div></div>`;
+  h += dropCard() + duoCard();
 
   // Three rings: what each part of the day looks like at a glance.
   const rp = ringParts(sc);
   const val = r => r.k === 'fuel' ? [fmt(t.cal), 'kcal'] : r.k === 'train' ? (sc.fx === 'rest' ? ['Rest', ''] : liftDone(d) ? ['Done', ''] : ['To do', '']) : [S.modules.steps ? (d.steps >= 1000 ? (d.steps / 1000).toFixed(1) + 'k' : d.steps) : cardioMin(d), S.modules.steps ? 'steps' : 'min'];
   h += `<div class="trio">${rp.map(r => { const [v, u] = val(r); return `<button class="tri r-${r.k}" data-act="${r.k === 'fuel' ? 'log' : r.k === 'train' ? 'startPlanned' : S.modules.steps ? 'steps' : 'cardio'}"><span class="tring">${arings([r], 58, 7, 0)}<i>${r.f >= 0.999 ? I.check : Math.round(r.f * 100) + '%'}</i></span><b>${v}${u ? `<small> ${u}</small>` : ''}</b><span class="tl">${r.n}</span></button>`; }).join('')}</div>`;
 
-  // This week as bars
+  h += buildCard();
+  // This week: you vs last week, or plain bars
   const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  h += `<button class="card wkc" data-act="go" data-arg="progress"><div class="chd2"><span>This week</span><b>${wk.pts}<small> pts</small></b></div>${bars(wk.out.map((s, i) => ({ x: days[i], y: s ? s.total : 0, hl: s && s.k === todayK(), c: s && s.total >= WIN ? 'accent' : 'dim' })), { max: 100, goal: WIN, h: 110 })}</button>`;
+  const gw = ghostWeekCard();
+  if (gw) h += gw; else h += `<button class="card wkc" data-act="go" data-arg="progress"><div class="chd2"><span>This week</span><b>${wk.pts}<small> pts</small></b></div>${bars(wk.out.map((s, i) => ({ x: days[i], y: s ? s.total : 0, hl: s && s.k === todayK(), c: s && s.total >= WIN ? 'accent' : 'dim' })), { max: 100, goal: WIN, h: 110 })}</button>`;
 
   if (isT) { const mv = nextMoves(S, k).filter(m => m.gain > 0.5)[0]; if (mv) h += `<button class="next" data-act="${mv.act}"><span class="ic">${I.bolt}</span><span><b>${esc(mv.t)}</b><span>+${Math.round(mv.gain)} points</span></span><span class="chev">${I.chev}</span></button>`; }
 
-  if (Social.on && Social.friends.length) {
+  if (Social.on && Social.friends.length && on('friends')) {
     const fr = Social.friends.map(f => { const s = f.stats || {}; return { f, sc2: s.day === todayK() ? s.score || 0 : 0 }; }).sort((a, b) => b.sc2 - a.sc2);
     h += `<div class="sect"><h2>Friends</h2><button class="link" data-act="go" data-arg="friends">All</button></div><div class="fstrip"><div class="fs"><div class="rw">${ring(sc.total / 100, 'accent', 60, 4)}${avatar(me ? me.avatar : S.profile.avatar || {}, '', S.profile.name)}</div><span>You</span></div>${fr.map(({ f, sc2 }) => `<button class="fs" data-act="friend" data-arg="${esc(f.handle)}"><div class="rw">${ring(sc2 / 100, 'accent', 60, 4)}${avatar(f.avatar, '', f.display)}</div><span class="ell" style="max-width:64px">${esc((f.display || f.handle).split(' ')[0])}</span></button>`).join('')}</div>`;
   }
@@ -77,7 +86,8 @@ function workoutCard(k, sc) {
   if (fx === 'rest') return `<button class="hcard c-train" data-act="pickWorkout">${head(`<i>Train anyway${I.chev}</i>`)}<div class="vv">Rest day</div></button>`;
   const r = S.routines.find(x => x.id === fx), n = r ? r.ex.length : 0;
   const mus = r ? [...new Set(r.ex.flatMap(e => (findEx(e.name, S.customEx) || { p: [] }).p))] : [];
-  return `<div class="hcard c-train woc"><div class="wotxt">${head(`<i>${n} exercises</i>`)}<div class="vv">${esc(routineName(S, fx))}</div><div class="row mt"><button class="btn grow" data-act="startPlanned">${I.play} Start</button><button class="btn ghost" data-act="planMenu" aria-label="Change workout">${I.swap}</button></div></div><div class="womap">${bodyMap(mus, [], { labels: false })}</div></div>`;
+  const first = r && r.ex[0] ? findEx(r.ex[0].name, S.customEx) || { n: r.ex[0].name, p: [], s: [] } : null;
+  return `<div class="hcard c-train woc"><div class="wotxt">${head(`<i>${n} exercises</i>`)}<div class="vv">${esc(routineName(S, fx))}</div><div class="row mt"><button class="btn grow" data-act="startPlanned">${I.play} Start</button><button class="btn ghost" data-act="planMenu" aria-label="Change workout">${I.swap}</button></div></div><div class="womap">${first ? exDrawing(first, { anim: on('anim') }) : bodyMap(mus, [], { labels: false })}</div></div>`;
 }
 
 function foodCard(k, d) {

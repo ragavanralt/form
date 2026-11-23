@@ -1,5 +1,6 @@
 // App state: one object saved to localStorage, plus render plumbing shared by every view.
-import { normalize, freshState, todayK, blankDay, normDay, score, streakInfo, xpTotal, levelOf, weekSummary, wkStart, liftHistory } from './core.js';
+import { normalize, freshState, todayK, blankDay, normDay, score, streakInfo, xpTotal, levelOf, weekSummary, wkStart, liftHistory, feat } from './core.js';
+import { buildOf } from './build.js';
 
 export const KEY = 'form2:state';
 export const V1_KEY = 'form-v1';
@@ -24,6 +25,8 @@ export const streak = () => cached('streak', () => streakInfo(S));
 export const level = () => cached('level', () => levelOf(xpTotal(S)));
 export const week = (ws = wkStart(todayK())) => cached('wk:' + ws, () => weekSummary(S, ws));
 export const hist = () => cached('hist', () => liftHistory(S));
+export const build = () => cached('build', () => buildOf(S));
+export const on = f => feat(S, f);
 
 // Views register render functions; renderAll repaints the current one plus the tab bar.
 export const R = { views: {}, cur: 'today', after: [] };

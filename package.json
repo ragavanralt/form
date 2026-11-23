@@ -6,6 +6,6 @@
   "description": "Form: food, training and habits in one daily score. Static site, no build step.",
   "scripts": {
     "start": "python3 -m http.server 8080",
-    "test": "node test/core.test.js && node test/backup.test.js && node test/sql.test.js"
+    "test": "node test/core.test.js && node test/backup.test.js && node test/features.test.js && node test/push.test.js && node test/sql.test.js"
   }
 }

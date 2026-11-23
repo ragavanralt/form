@@ -14,7 +14,7 @@ export const Social = {
   get on() { return !!(this.auth && this.auth.token); },
 };
 
-async function rpc(fn, args = {}, timeout = 12000) {
+export async function rpc(fn, args = {}, timeout = 12000) {
   const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), timeout);
   try {
     const r = await fetch(`${SERVER.url}/rest/v1/rpc/${fn}`, { method: 'POST', signal: ctl.signal, headers: { 'content-type': 'application/json', apikey: SERVER.key, authorization: 'Bearer ' + SERVER.key }, body: JSON.stringify(args) });

@@ -61,11 +61,14 @@ export const AV_IDS = ['violet1', 'violet2', 'mint1', 'mint2', 'gold1', 'gold2',
 export const AV_GRAD = [['#a593ff', '#5b3dff'], ['#7cc0ff', '#3d5bff'], ['#6ee7c8', '#0f9f78'], ['#ffd166', '#ff8a3d'], ['#ffa08a', '#ff3d6e'], ['#ff9ad0', '#c53dff'], ['#e2ff7a', '#4fbf3a'], ['#9aa3b5', '#3a4150']];
 const hashOf = s => [...String(s || '')].reduce((x, c) => (x * 31 + c.codePointAt(0)) >>> 0, 7);
 const initial = n => (Array.from(String(n || '').trim())[0] || '?').toUpperCase();
+// Reward frames ring the avatar. Kept here (not loot.js) so ui.js stays dependency-free.
+export const FRAME_BG = { aurora: 'linear-gradient(135deg,#8b6cff,#22c8e6)', ember: 'linear-gradient(135deg,#ff7a2f,#ff3d6e)', gold: 'linear-gradient(135deg,#ffe08a,#ffb020)', mint: 'linear-gradient(135deg,#6ee7c8,#0f9f78)', ice: 'linear-gradient(135deg,#e0f2ff,#7cc0ff)', rose: 'linear-gradient(135deg,#ff9ad0,#ff4f9a)', neon: 'linear-gradient(135deg,#c6f432,#22c8e6)', holo: 'conic-gradient(from 0deg,#ff4f9a,#ffc233,#2fd6a3,#22c8e6,#8b6cff,#ff4f9a)' };
 export function avatar(a = {}, size = 'md', name = '') {
   a = a || {};
-  if (AV_IDS.includes(a.t)) return `<span class="av ${size} th"><img src="assets/avatars/${a.t}.svg" alt="" loading="lazy"></span>`;
-  const g = AV_GRAD[(Number.isInteger(a.g) ? a.g : hashOf(name)) % AV_GRAD.length];
-  return `<span class="av ${size} mono" style="--g1:${g[0]};--g2:${g[1]}"><b>${esc(initial(name))}</b></span>`;
+  let inner;
+  if (AV_IDS.includes(a.t)) inner = `<span class="av ${size} th"><img src="assets/avatars/${a.t}.svg" alt="" loading="lazy"></span>`;
+  else { const g = AV_GRAD[(Number.isInteger(a.g) ? a.g : hashOf(name)) % AV_GRAD.length]; inner = `<span class="av ${size} mono" style="--g1:${g[0]};--g2:${g[1]}"><b>${esc(initial(name))}</b></span>`; }
+  return FRAME_BG[a.f] ? `<span class="avr ${size} ${a.f === 'holo' ? 'holo' : ''}" style="--fr:${FRAME_BG[a.f]}">${inner}</span>` : inner;
 }
 // One picker for Profile and the friends sign-up. actT/actG are the action names to call.
 export function avPicker(a, name, actT, actG) {
@@ -109,8 +112,9 @@ export function beep(f = 880, d = 0.12) {
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = f; o.connect(g); g.connect(actx.destination); g.gain.setValueAtTime(0.12, actx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + d); o.start(); o.stop(actx.currentTime + d); } catch (e) {}
 }
 const reduce = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+export const FX = { on: () => true }; // set by app.js from Settings → Features → Celebrations
 export function confetti(n = 120) {
-  if (reduce()) return;
+  if (reduce() || !FX.on()) return;
   const cv = $('#fx'), ctx = cv.getContext('2d'), dpr = window.devicePixelRatio || 1;
   cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const cs = getComputedStyle(document.documentElement);

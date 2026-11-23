@@ -1,0 +1,13 @@
+<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Exercise drawings</title>
+<link rel="stylesheet" href="../css/app.css">
+<style>body{padding:12px;background:#0b0c0f}.g{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.c{background:#16181d;border-radius:12px;padding:6px;font-size:10px;color:#aaa}.c svg{width:100%;display:block}</style>
+<div class="g" id="g"></div>
+<script type="module">
+import { exDrawing } from '../js/draw.js';
+import { EXERCISES } from '../js/exercises.js';
+const anim = new URLSearchParams(location.search).has('anim');
+const only = new URLSearchParams(location.search).get('only');
+document.getElementById('g').innerHTML = EXERCISES.filter(x => !only || new RegExp(only, 'i').test(x.n)).map(x => `<div class="c">${exDrawing(x, { anim })}${x.n}</div>`).join('');
+</script>

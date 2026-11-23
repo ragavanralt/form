@@ -1,15 +1,17 @@
 // Train: weekly plan, routines, exercise library with muscle diagrams, live workout sessions, AI import.
-import { S, R, day, get, touch, render, hist, scoreOf } from '../store.js';
+import { S, R, day, get, touch, render, hist, scoreOf, on } from '../store.js';
 import { todayK, addDays, wkStart, pdk, esc, fmt, uid, num, nint, DOW, DOWL, planned, routineName, liftDone, prCheck, overload, e1rm, tierOf } from '../core.js';
 import { A, CH, I, $, openSheet, setSheet, closeSheet, toast, haptic, beep, confetti, pickFiles, Sheet } from '../ui.js';
 import { EXERCISES, MUSCLES, GROUPS, EQUIP, PROGRAMS, findEx, allEx, groupOf } from '../exercises.js';
 import { bodyMap, heatMap } from '../body.js';
+import { exDrawing } from '../draw.js';
+import { levelUps } from '../build.js';
 import { line, spark } from '../charts.js';
 import { aiOn, importWorkouts, errMsg } from '../ai.js';
 import { postWorkout } from './friends.js';
 
 const exInfo = n => findEx(n, S.customEx) || { n, p: ['other'], s: [], e: '', c: '' };
-const thumb = n => { const x = exInfo(n); return bodyMap(x.p, x.s, { only: ['lats', 'upper', 'lower', 'traps', 'rdelt', 'triceps', 'glutes', 'hams'].includes(x.p[0]) ? 'back' : 'front', crop: true }); };
+const thumb = n => exDrawing(exInfo(n));
 const unit = () => S.profile.units || 'kg';
 
 export function vTrain() {
@@ -103,7 +105,7 @@ A.libBack = () => setSheet(libHTML());
 A.exDetail = n => {
   const x = exInfo(n), rows = hist().map[n] || [];
   const best = rows.length ? rows.reduce((b, r) => (r.e1 > b.e1 ? r : b), rows[0]) : null;
-  openSheet('ex', esc(n), `<div class="exhero">${bodyMap(x.p, x.s)}</div>
+  openSheet('ex', esc(n), `<div class="exhero draw">${exDrawing(x, { anim: on('anim') })}</div>
   <div class="row wrap mt" style="gap:6px">${x.p.map(m => `<span class="pill acc">${MUSCLES[m] || m}</span>`).join('')}${x.s.map(m => `<span class="pill">${MUSCLES[m] || m}</span>`).join('')}${x.e ? `<span class="pill">${x.e}</span>` : ''}</div>
   ${x.c ? `<div class="note mt"><b style="color:var(--ink)">How to</b><br>${esc(x.c)}</div>` : ''}
   ${rows.length ? `<div class="g3 mt"><div class="stat"><small>Est. 1RM</small><b class="n">${Math.round(best.e1)}</b></div><div class="stat"><small>Best set</small><b class="n">${best.top.w}×${best.top.r}</b></div><div class="stat"><small>Sessions</small><b class="n">${rows.length}</b></div></div>
@@ -151,10 +153,10 @@ function sessionHTML(w) {
     : `<button class="faint small row" data-act="woTime" style="gap:4px;text-align:left"><span id="welap">${elapsed(w.start)}</span> · ${done}/${all} sets · ${fmt(vol)} ${unit()}</button>`;
   return `<div class="row between">${head}<span class="row" style="gap:6px">${EDK ? '' : `<button class="btn xs ghost" data-act="restSet">Rest ${restLbl(S.settings.rest)}</button>`}<button class="btn xs ghost" data-act="woMenu" aria-label="Workout options">${I.dots}</button></span></div>
   ${EDK ? `<div class="field mt"><span>Duration (minutes)</span><input type="number" inputmode="numeric" value="${w.end && w.start ? Math.round((w.end - w.start) / 60000) : ''}" placeholder="60" data-ch="woDur"></div>` : ''}
-  <div class="pbar c-train mt" style="height:6px"><i style="width:${all ? (done / all) * 100 : 0}%"></i></div>
+  ${ghostBar(w)}<div class="pbar c-train mt" style="height:6px"><i style="width:${all ? (done / all) * 100 : 0}%"></i></div>
   <div class="session mt">${w.ex.map((e, i) => { const o = overload(h, e.name, e.reps, t); const exDone = e.sets.length && e.sets.every(s => s.done); return `<div class="sx ${exDone ? 'done' : ''}">
     <div class="sxh"><button class="th" data-act="exDetail" data-arg="${esc(e.name)}">${thumb(e.name)}</button><span><b>${esc(e.name)}</b><span>${e.sets.length} × ${esc(e.reps)}${e.rest ? ' · rest ' + restLbl(e.rest) : ''}</span></span><button class="x" data-act="exMenu" data-arg="${i}" aria-label="Exercise options">${I.dots}</button></div>
-    ${e.note ? `<div class="note small" style="margin:6px 0 0">${esc(e.note)}</div>` : ''}<div class="hint">${esc(o.line)}${o.next ? ` · try <b>${o.next.w} × ${o.next.r}</b>` : ''}</div>${o.stall ? `<div class="note small" style="margin-top:6px">${esc(o.stall)}</div>` : ''}
+    ${e.note ? `<div class="note small" style="margin:6px 0 0">${esc(e.note)}</div>` : ''}<div class="hint">${esc(o.line)}${o.next ? ` · try <b>${o.next.w} × ${o.next.r}</b>` : ''}${ghostDelta(e)}</div>${o.stall ? `<div class="note small" style="margin-top:6px">${esc(o.stall)}</div>` : ''}
     <div class="sets"><div class="set h"><span>Set</span><span>Prev</span><span>${unit()}</span><span>Reps</span><span></span></div>
     ${e.sets.map((s, j) => { const prev = (h.map[e.name] || []).filter(r => r.date !== t).at(-1); const pv = prev && (prev.sets[j] || null); return `<div class="set ${s.done ? 'done' : ''}"><button class="k ${s.k}" data-act="setKind" data-arg="${i}|${j}">${s.k !== 'N' ? s.k : j + 1 - e.sets.slice(0, j).filter(x => x.k === 'W').length}</button><span class="pv">${pv ? pv.w + '×' + pv.r : '–'}</span><input type="number" inputmode="decimal" value="${esc(s.w)}" placeholder="${pv ? pv.w : '0'}" data-ch="setW" data-i="${i}" data-j="${j}"><input type="number" inputmode="numeric" value="${esc(s.r)}" placeholder="${s.ph || (pv ? pv.r : '') || String(e.reps).split(/[–-]/)[0]}" data-ch="setR" data-i="${i}" data-j="${j}"><button class="ck" data-act="setDone" data-arg="${i}|${j}" aria-label="Complete set">${I.check}</button></div>${s.pr ? `<div style="margin:-2px 0 2px 37px"><span class="prtag">${esc(s.pr)}</span></div>` : ''}`; }).join('')}</div>
     <div class="row mt" style="gap:6px"><button class="btn xs ghost" data-act="setAdd" data-arg="${i}">+ Set</button>${e.sets.length > 1 ? `<button class="btn xs ghost" data-act="setRem" data-arg="${i}">− Set</button>` : ''}</div></div>`; }).join('')}</div>
@@ -261,7 +263,7 @@ function summary(k, fresh) {
   const mus = [...new Set(w.ex.flatMap(e => exInfo(e.name).p))], sec = [...new Set(w.ex.flatMap(e => exInfo(e.name).s))].filter(m => !mus.includes(m));
   if (fresh) { confetti(prs.length ? 160 : 90); beep(988, 0.15); }
   openSheet('sum', fresh ? 'Workout complete' : esc(w.name), `<div class="exhero">${bodyMap(mus, sec)}</div>
-  <div class="sumgrid mt"><div class="stat"><small>Time</small><b class="n">${w.end && w.start ? Math.round((w.end - w.start) / 60000) : '–'}<span class="faint small"> min</span></b></div><div class="stat"><small>Volume</small><b class="n">${fmt(vol)}</b></div><div class="stat"><small>Sets</small><b class="n">${sets}</b></div></div>
+  ${summaryExtras(k, w, vol)}<div class="sumgrid mt"><div class="stat"><small>Time</small><b class="n">${w.end && w.start ? Math.round((w.end - w.start) / 60000) : '–'}<span class="faint small"> min</span></b></div><div class="stat"><small>Volume</small><b class="n">${fmt(vol)}</b></div><div class="stat"><small>Sets</small><b class="n">${sets}</b></div></div>
   ${prs.length ? `<div class="card mt"><div class="chd"><h3>${I.trophy} ${prs.length} personal record${prs.length > 1 ? 's' : ''}</h3></div><div class="list">${prs.map(p => `<div class="li noic"><span><span class="t">${esc(p.n)}</span><span class="s">${esc(p.s.pr)}</span></span><span class="r b">${p.s.w} × ${p.s.r}</span></div>`).join('')}</div></div>` : ''}
   <div class="list mt">${w.ex.map(e => `<div class="li noic"><span><span class="t">${esc(e.name)}</span><span class="s">${e.sets.filter(s => s.done).map(s => (s.k === 'W' ? 'W ' : '') + s.w + '×' + s.r).join(', ')}</span></span><span></span></div>`).join('')}</div>
   ${fresh ? `<p class="faint small center mt">${scoreOf(k).total} day score · training points locked in</p>` : ''}
@@ -308,4 +310,31 @@ A.imSave = () => {
   (IMR.sessions || []).forEach(s => { if (!/^\d{4}-\d{2}-\d{2}$/.test(s.date || '')) return; const d = day(s.date); if (d.wo) return; const conv = IMR.unit && IMR.unit !== unit() ? (IMR.unit === 'lb' ? 1 / 2.2046 : 2.2046) : 1; d.wo = { id: uid(), name: s.name || 'Workout', status: 'done', start: 0, end: 0, ex: (s.ex || []).map(e => ({ id: uid(), name: (findEx(e.name, S.customEx) || {}).n || e.name, muscle: exInfo(e.name).p[0], reps: '8–12', note: '', sets: (e.sets || []).map(x => ({ w: String(Math.round(num(x.w) * conv * 2) / 2), r: String(nint(x.r)), k: 'N', done: true, pr: '' })) })) }; ns++; if (s.date < S.profile.start) S.profile.start = s.date; });
   touch(); closeSheet(); render(); toast(`Imported ${nr} routine${nr === 1 ? '' : 's'}${ns ? ' and ' + ns + ' workouts' : ''}`);
 };
+
+/* ---------- ghost race: you vs your last session of each exercise ---------- */
+function ghostSets(name) { const k = curK(); const last = (hist().map[name] || []).filter(r => r.date < k).at(-1); return last ? last.sets : null; }
+const vol = sets => sets.reduce((a, s) => a + num(s.w) * num(s.r), 0);
+function ghostOf(w) {
+  let G = 0, Y = 0, any = false;
+  w.ex.forEach(e => { const g = ghostSets(e.name); if (!g) return; any = true; G += vol(g); Y += vol(e.sets.filter(s => s.done && s.k !== 'W')); });
+  return any ? { G, Y } : null;
+}
+function ghostBar(w) {
+  if (!on('ghost')) return '';
+  const g = ghostOf(w); if (!g) return '';
+  const max = Math.max(g.G, g.Y, 1), lead = g.Y - g.G;
+  return `<div class="race mt"><div class="lane"><span>You</span><div class="track"><i style="width:${(g.Y / max) * 100}%;background:var(--acc)"></i></div><b class="n">${fmt(g.Y)}</b></div><div class="lane ghost"><span>Ghost</span><div class="track"><i style="width:${(g.G / max) * 100}%"></i></div><b class="n">${fmt(g.G)}</b></div><div class="faint tiny" style="margin-top:4px">${lead >= 0 && g.Y ? `Ahead of last time by ${fmt(lead)} ${unit()}` : `Last time’s volume. ${fmt(g.G - g.Y)} ${unit()} to pass it`}</div></div>`;
+}
+function ghostDelta(e) {
+  if (!on('ghost')) return '';
+  const g = ghostSets(e.name), mine = e.sets.filter(s => s.done && s.k !== 'W'); if (!g || !mine.length) return '';
+  const d = Math.round(vol(mine) - vol(g.slice(0, mine.length)));
+  return ` · <b class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${fmt(Math.abs(d))} ${unit()} vs ghost</b>`;
+}
+function summaryExtras(k, w, v) {
+  let out = '';
+  if (on('build') && S.modules.train) { const ups = levelUps(S, k); if (ups.length) out += `<div class="ups mt">${ups.map(u => `<button class="upc" data-act="muscle" data-arg="${u.id}"><small>Level up</small><b>${esc(u.n)}</b><span>${u.from} → ${u.to}</span></button>`).join('')}</div>`; }
+  if (on('ghost')) { const prev = hist().sessions.filter(s => s.name === w.name && s.date < k).at(-1); if (prev && prev.vol) { const d = v - prev.vol; out += `<div class="note mt" style="text-align:center">${d >= 0 ? `You beat your ghost by <b>${fmt(d)} ${unit()}</b> (+${Math.round((d / prev.vol) * 100)}%)` : `Your ghost won by ${fmt(-d)} ${unit()}. Next time`} · last ${esc(w.name)} was ${pdk(prev.date).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}</div>`; } }
+  return out;
+}
 export { exInfo, thumb };

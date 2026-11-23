@@ -4,6 +4,8 @@ import { todayK, addDays, wkStart, pdk, esc, fmt, num, tierOf, TIER_L, WIN, rank
 import { A, CH, I, $, openSheet, setSheet, closeSheet, toast, haptic, avatar, ago, share, confetti, avPicker } from '../ui.js';
 import { Social, ping, signup, login, logout, updateMe, loadFriends, addFriend, respond, loadFeed, post, react, nudge, loadInbox, inboxSeen, socialErr, deleteMe } from '../social.js';
 import { findEx, MUSCLES } from '../exercises.js';
+import { holdString, duoStreak } from '../duo.js';
+import { on } from '../store.js';
 
 const RX = ['🔥', '💪', '👏', '😤'];
 const F = { tab: 'feed', loading: false, err: '' };
@@ -85,7 +87,7 @@ function leagueCard() {
   const me = Social.auth.me, mw = myWeekStats().pts;
   const rows = [{ u: me, pts: mw, me: true }, ...Social.friends.map(f => ({ u: f, pts: fWeek(f) }))].sort((a, b) => b.pts - a.pts);
   const daysLeft = 7 - ((new Date().getDay() + 6) % 7) - 1;
-  return `<div class="card"><div class="chd"><h3>${I.trophy} Weekly league</h3><span class="r">${daysLeft ? daysLeft + ' day' + (daysLeft > 1 ? 's' : '') + ' left' : 'Last day'}</span></div><div class="lb">${rows.map((r, i) => `<button class="lbr ${r.me ? 'me' : ''}" ${r.me ? '' : `data-act="friend" data-arg="${esc(r.u.handle)}"`} style="text-align:left;width:100%"><span class="rk">${i + 1}</span>${avatar(r.u.avatar, 'sm', r.u.display)}<span><b>${r.me ? 'You' : name(r.u)}</b><span style="display:block">${r.me ? streak().streak + ' day streak' : statLine(r.u)}</span></span><span class="pts">${fmt(r.pts)}</span></button>`).join('')}</div></div>`;
+  return `<div class="card"><div class="chd"><h3>${I.trophy} Weekly league</h3><span class="r">${daysLeft ? daysLeft + ' day' + (daysLeft > 1 ? 's' : '') + ' left' : 'Last day'}</span></div><div class="lb">${rows.map((r, i) => `<button class="lbr ${r.me ? 'me' : ''}" ${r.me ? '' : `data-act="friend" data-arg="${esc(r.u.handle)}"`} style="text-align:left;width:100%"><span class="rk">${i + 1}</span>${avatar(r.u.avatar, 'sm', r.u.display)}<span><b>${r.me ? 'You' : name(r.u)}</b><span style="display:block">${r.u && r.u.avatar && r.u.avatar.ti ? `<span class="ttl sm">${esc(r.u.avatar.ti)}</span> ` : ''}${r.me ? streak().streak + ' day streak' : statLine(r.u)}</span></span><span class="pts">${fmt(r.pts)}</span></button>`).join('')}</div></div>`;
 }
 function statLine(f) { const s = f.stats || {}; const parts = []; if (s.day === todayK()) parts.push(s.score + ' today'); if (s.streak) parts.push(s.streak + ' day streak'); if (s.lastWo === todayK()) parts.push('trained'); return parts.join(' · ') || 'Quiet today'; }
 function vsCard() {
@@ -151,11 +153,13 @@ A.friend = h => {
   const s = f.stats || {}, today = s.day === todayK();
   const posts = Social.feed.filter(p => p.user.handle === h).slice(0, 6);
   const my = scoreOf(todayK()).total;
-  openSheet('friend', '', `<div class="center col" style="align-items:center;gap:6px">${avatar(f.avatar, 'lg', f.display)}<h3 style="font-size:24px;margin-top:6px">${name(f)}</h3><span class="faint small">@${esc(f.handle)} · active ${ago(f.last_seen)}</span></div>
+  const isDuo = S.duo.h === h, back = s.duo === Social.auth.me.handle;
+  openSheet('friend', '', `<div class="center col" style="align-items:center;gap:6px">${avatar(f.avatar, 'lg', f.display)}<h3 style="font-size:24px;margin-top:6px">${name(f)}</h3>${f.avatar && f.avatar.ti ? `<span class="ttl">${esc(f.avatar.ti)}</span>` : ''}<span class="faint small">@${esc(f.handle)} · active ${ago(f.last_seen)}</span></div>
   <div class="g3 mt2"><div class="stat center"><small>Today</small><b class="n">${today ? s.score || 0 : '–'}</b></div><div class="stat center"><small>Streak</small><b class="n">${s.streak || 0}</b></div><div class="stat center"><small>Level</small><b class="n">${s.level || 1}</b></div></div>
   <div class="card mt"><div class="vs"><div class="side"><b class="n">${my}</b><span>You today</span></div><div class="mid">VS</div><div class="side"><b class="n">${today ? s.score || 0 : 0}</b><span>${first(f)} today</span></div></div>
   <p class="muted small center" style="margin:10px 0 0">${s.lastWo === todayK() ? `${first(f)} trained today${s.woName ? ' (' + esc(s.woName) + ')' : ''}.` : `${first(f)} hasn’t trained today.`} ${liftDone(get(todayK())) ? 'You have.' : S.modules.train ? 'Neither have you.' : ''}</p></div>
   <div class="g3 mt"><button class="btn ghost" data-act="sendNudge" data-arg="${esc(h)}|nudge">Nudge</button><button class="btn ghost" data-act="sendNudge" data-arg="${esc(h)}|cheer">Cheer</button><button class="btn ghost" data-act="sendNudge" data-arg="${esc(h)}|flex">Flex</button></div>
+  ${on('duo') ? `<button class="btn ${isDuo ? 'line' : ''} wide mt" data-act="duoSet" data-arg="${isDuo ? '' : esc(h)}">${isDuo ? (back ? 'End our duo streak' : `Cancel duo invite`) : back ? `🔥 ${first(f)} wants a duo streak. Start it` : `🔥 Start a duo streak with ${first(f)}`}</button>` : ''}
   ${posts.length ? `<div class="sec"><div class="lab">Recent</div><div class="feed">${posts.map(postHTML).join('')}</div></div>` : ''}`, { full: true });
 };
 const NUDGE_MSG = {
@@ -175,7 +179,7 @@ export async function syncStats(force) {
   const t = todayK(), sc = scoreOf(t), st = streak(), lv = level(), w = week();
   const d = get(t), share2 = S.settings.share;
   const h = hist(); const last = h.sessions.at(-1);
-  const stats = { day: t, score: share2.scores ? sc.total : 0, streak: st.streak, level: lv.level, ws: wkStart(t), week: share2.scores ? w.pts : 0, lastWo: last ? last.date : '', woName: liftDone(d) && share2.workouts ? d.wo.name : '', goal: S.profile.goal };
+  const stats = { day: t, score: share2.scores ? sc.total : 0, streak: st.streak, level: lv.level, ws: wkStart(t), week: share2.scores ? w.pts : 0, lastWo: last ? last.date : '', woName: liftDone(d) && share2.workouts ? d.wo.name : '', goal: S.profile.goal, hold: holdString(S, t), duo: on('duo') ? S.duo.h || '' : '' };
   const sig = JSON.stringify(stats);
   if (!force && sig === lastStats) return;
   lastStats = sig;
@@ -242,3 +246,21 @@ export function awaySheet() {
 }
 export const socialSignOut = async () => { await logout(); render(); };
 export const socialDelete = async () => { await deleteMe(); render(); };
+
+/* ---------- duo streak ---------- */
+// Both pick each other, then both have to keep the day alive (45+). Shared through the synced stats.
+export function duoInfo() {
+  if (!on('duo') || !Social.on || !S.duo.h) return null;
+  const f = Social.friends.find(x => x.handle === S.duo.h); if (!f) return null;
+  const s = f.stats || {}, mutual = s.duo === Social.auth.me.handle;
+  return { f, mutual, ...duoStreak(holdString(S), mutual ? s : null) };
+}
+export function duoCard() {
+  if (R.day !== todayK()) return '';
+  const x = duoInfo(); if (!x) return '';
+  const me = Social.auth.me;
+  if (!x.mutual) return `<button class="card duoc wait" data-act="friend" data-arg="${esc(x.f.handle)}"><div class="duoav">${avatar(me.avatar, 'sm', me.display)}${avatar(x.f.avatar, 'sm', x.f.display)}</div><span><b>Duo invite sent</b><span class="faint small" style="display:block">Waiting for ${first(x.f)} to pick you back</span></span><span class="chev">${I.chev}</span></button>`;
+  const line = x.me && x.them ? 'Both done today. Streak safe' : x.them ? `${first(x.f)} did their part. Your move` : x.me ? `You did your part. Waiting on ${first(x.f)}` : 'Neither of you has hit 45 yet';
+  return `<button class="card duoc" data-act="friend" data-arg="${esc(x.f.handle)}"><div class="duoav">${avatar(me.avatar, 'sm', me.display)}${avatar(x.f.avatar, 'sm', x.f.display)}</div><span><b>${x.n} day duo streak</b><span class="faint small" style="display:block">${line}</span></span><span class="duon ${x.me && x.them ? 'hot' : ''}">${I.flame}<i class="${x.me ? 'y' : ''}"></i><i class="${x.them ? 'y' : ''}"></i></span></button>`;
+}
+A.duoSet = h => { S.duo.h = h || ''; save(); syncStats(true); render(); closeSheet(); toast(h ? 'Duo invite sent. It starts when they pick you too' : 'Duo streak ended'); };

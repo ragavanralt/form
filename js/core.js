@@ -30,6 +30,25 @@ export const MODULES = [
   { id: 'weight', n: 'Body weight', d: 'Weigh-ins and a smoothed trend line', c: 'body' },
 ];
 
+// Everything optional can be switched off in Settings → Features. Off hides it; your data stays.
+export const FEATURES = [
+  { id: 'drop', g: 'Daily', n: 'Daily Drop', d: 'One small challenge a day, picked from what you track' },
+  { id: 'loot', g: 'Daily', n: 'Rewards', d: 'Titles, avatar frames and streak freezes for Drops and strong weeks' },
+  { id: 'streak', g: 'Daily', n: 'Streak', d: 'Days in a row at 45 or more' },
+  { id: 'levels', g: 'Daily', n: 'Levels and ranks', d: 'XP from every day you log' },
+  { id: 'celebrate', g: 'Daily', n: 'Celebrations', d: 'Confetti for PRs, wins and level ups' },
+  { id: 'build', g: 'Training', n: 'The Build', d: 'Every muscle levels up from your sets, and cools off if you skip it' },
+  { id: 'ghost', g: 'Training', n: 'Ghost race', d: 'Race your last session live, and last week on Today' },
+  { id: 'anim', g: 'Training', n: 'Moving exercise drawings', d: 'Drawings loop through the lift' },
+  { id: 'seasons', g: 'Progress', n: 'Seasons and Wrapped', d: '6-week seasons with a shareable recap at the end' },
+  { id: 'recap', g: 'Progress', n: 'Weekly recap', d: 'Your week in one card every Monday' },
+  { id: 'badges', g: 'Progress', n: 'Badges', d: 'Milestones on the Progress tab' },
+  { id: 'coach', g: 'Progress', n: 'AI coach', d: 'A short read on your week (needs AI on)' },
+  { id: 'friends', g: 'Friends', n: 'Friends tab', d: 'League, feed, nudges' },
+  { id: 'duo', g: 'Friends', n: 'Duo streak', d: 'Keep a streak alive with one friend' },
+];
+export const feat = (S, id) => !S.settings.features || S.settings.features[id] !== false;
+
 export function freshState() {
   return {
     v: 2, u: 0, onboarded: false, created: Date.now(),
@@ -42,8 +61,11 @@ export function freshState() {
     routines: [],
     customEx: [],
     foods: { fav: [], recent: [] },
-    settings: { theme: 'dark', accent: 'violet', accV: 2, rest: 90, autoRest: true, sound: true, haptics: true, share: { workouts: true, scores: true, prs: true, meals: false }, remind: { on: false, morning: '08:30', evening: '21:30', gym: '18:00' } },
-    seen: { recap: '', ach: [], tour: false, feed: 0, level: 0 },
+    settings: { theme: 'dark', accent: 'violet', accV: 2, rest: 90, autoRest: true, sound: true, haptics: true, share: { workouts: true, scores: true, prs: true, meals: false }, remind: { on: false, morning: '08:30', evening: '21:30', gym: '18:00' }, features: Object.fromEntries(FEATURES.map(f => [f.id, true])) },
+    seen: { recap: '', ach: [], tour: false, feed: 0, level: 0, wrapped: 0 },
+    loot: { crates: [], items: [] },
+    drops: {},
+    duo: { h: '' },
     days: {},
   };
 }
@@ -61,6 +83,9 @@ export function normalize(s) {
   o.settings = Object.assign(freshState().settings, ob(s.settings));
   o.settings.share = Object.assign(freshState().settings.share, ob(o.settings.share));
   o.settings.remind = Object.assign(freshState().settings.remind, ob(o.settings.remind));
+  o.settings.features = Object.assign(freshState().settings.features, ob(o.settings.features));
+  o.loot = Object.assign({ crates: [], items: [] }, ob(s.loot)); ['crates', 'items'].forEach(k => { if (!Array.isArray(o.loot[k])) o.loot[k] = []; });
+  o.drops = ob(s.drops); o.duo = Object.assign({ h: '' }, ob(s.duo));
   if (!(ob(s.settings).accV >= 2)) { if (o.settings.accent === 'lime') o.settings.accent = 'violet'; o.settings.accV = 2; } // lime was the old default
   o.seen = Object.assign(freshState().seen, ob(s.seen));
   if (!Array.isArray(o.seen.ach)) o.seen.ach = [];
@@ -165,6 +190,8 @@ export function streakInfo(S, today = todayK()) {
   let bank = 0, cur = 0, best = 0, k = start;
   const frozen = {};
   let weekWins = 0, g = 0;
+  const fz = {}; ((S.loot && S.loot.items) || []).forEach(i => { if (i.kind === 'freeze') fz[i.at] = (fz[i.at] || 0) + 1; });
+  Object.keys(fz).forEach(at => { if (at < start) bank = Math.min(3, bank + fz[at]); });
   while (k < today && g++ < 4000) {
     const sc = score(S, k).total;
     if (sc >= HOLD) { cur++; if (sc >= WIN) weekWins++; }
@@ -172,6 +199,7 @@ export function streakInfo(S, today = todayK()) {
     else cur = 0;
     best = Math.max(best, cur);
     if (pdk(k).getDay() === 0) { if (weekWins >= 5) bank = Math.min(2, bank + 1); weekWins = 0; }
+    if (fz[k]) bank = Math.min(3, bank + fz[k]);
     k = addDays(k, 1);
   }
   const ts = score(S, today).total;

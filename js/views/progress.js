@@ -1,5 +1,6 @@
 // Progress: trends, calendar heatmap, nutrition and body charts, training volume, achievements, weekly recap.
-import { S, R, get, scoreOf, streak, level, week, hist, save } from '../store.js';
+import { S, R, get, scoreOf, streak, level, week, hist, save, on } from '../store.js';
+import { seasonCard } from './wrapped.js';
 import { todayK, addDays, wkStart, pdk, esc, fmt, totals, cardioMin, tierOf, TIER_L, WIN, achievements, weightTrend, rankOf, liftDone } from '../core.js';
 import { A, I, $, openSheet, setSheet, toast, confetti } from '../ui.js';
 import { line, bars, heat, rings } from '../charts.js';
@@ -16,7 +17,8 @@ export function vProgress() {
   const avg = past.length ? Math.round(past.reduce((a, s) => a + s.total, 0) / past.length) : 0;
   const wins = past.filter(s => s.total >= WIN).length, st = streak(), lv = level(), h = hist();
   const wos = h.sessions.filter(s => s.date >= ks[0]).length;
-  let x = `<div class="top"><div><div class="sub">Level ${lv.level} · ${rankOf(lv.level)}</div><h1>Progress</h1></div><button class="iconbtn" data-act="weekRecap" aria-label="Weekly recap">${I.calendar}</button></div>
+  let x = `<div class="top"><div><div class="sub">${on('levels') ? `Level ${lv.level} · ${rankOf(lv.level)}` : 'Your trends'}</div><h1>Progress</h1></div>${on('recap') ? `<button class="iconbtn" data-act="weekRecap" aria-label="Weekly recap">${I.calendar}</button>` : ''}</div>
+  ${seasonCard()}
   <div class="seg">${[[7, '7 days'], [30, '30 days'], [90, '90 days']].map(([v, l]) => `<button class="${P.range === v ? 'on' : ''}" data-act="pRange" data-arg="${v}">${l}</button>`).join('')}</div>
   <div class="strip"><div class="tile"><small>Average</small><b>${avg}</b></div><div class="tile"><small>Wins</small><b>${wins}</b></div><div class="tile"><small>Workouts</small><b>${wos}</b></div></div>`;
   x += `<div class="hcard c-accent"><div class="hh"><span>${I.chart}Day score</span></div>${line(scs.map(s => ({ x: lbl(s.k), y: s.k <= t ? s.total : null })), { min: 0, max: 100, goal: WIN, area: true, dots: n <= 30, c: 'accent' })}</div>`;
@@ -41,9 +43,9 @@ export function vProgress() {
     const vol = wks.map(ws => h.sessions.filter(s => s.date >= ws && s.date < addDays(ws, 7)).reduce((a, s) => a + s.vol, 0));
     x += `<div class="hcard c-train"><div class="hh"><span>${I.dumb}Volume</span><i>${S.profile.units} / week</i></div>${bars(wks.map((ws, i) => ({ x: lbl(ws).split(' ')[1], y: vol[i], hl: i === 7 })), { c: 'train', labels: true, fmt: v => (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : Math.round(v)), h: 140 })}</div>`;
   }
-  x += `<div class="hcard c-accent"><div class="hh"><span>${I.spark}Coach</span></div><div id="coachOut">${S.seen.coach && S.seen.coach.d === t ? coachHTML(S.seen.coach) : `<button class="btn sm ${aiOn() ? '' : 'ghost'}" data-act="coach" ${aiOn() ? '' : 'disabled'}>Read my week</button>`}</div></div>`;
+  if (on('coach')) x += `<div class="hcard c-accent"><div class="hh"><span>${I.spark}Coach</span></div><div id="coachOut">${S.seen.coach && S.seen.coach.d === t ? coachHTML(S.seen.coach) : `<button class="btn sm ${aiOn() ? '' : 'ghost'}" data-act="coach" ${aiOn() ? '' : 'disabled'}>Read my week</button>`}</div></div>`;
   const ach = achievements(S), got = ach.filter(a2 => a2.got).length;
-  x += `<div class="sect"><h2>Badges</h2><span class="faint small">${got}/${ach.length}</span></div><div class="ach">${ach.map(a2 => `<div class="ac ${a2.got ? 'got' : ''}"><span class="md">${a2.got ? I.medal : I.star}</span><b>${esc(a2.n)}</b><small>${esc(a2.d)}</small></div>`).join('')}</div>`;
+  if (on('badges')) x += `<div class="sect"><h2>Badges</h2><span class="faint small">${got}/${ach.length}</span></div><div class="ach">${ach.map(a2 => `<div class="ac ${a2.got ? 'got' : ''}"><span class="md">${a2.got ? I.medal : I.star}</span><b>${esc(a2.n)}</b><small>${esc(a2.d)}</small></div>`).join('')}</div>`;
   $('#v-progress').innerHTML = x;
 }
 A.pRange = v => { P.range = +v; vProgress(); };

@@ -21,3 +21,13 @@ export function heatMap(vals) {
   const lvl = ids => { const v = Math.max(0, ...ids.map(i => vals[i] || 0)); return v >= 0.75 ? 'h3' : v >= 0.4 ? 'h2' : v > 0 ? 'h1' : ''; };
   return `<svg class="body" viewBox="0 0 230 214" role="img" aria-label="Weekly muscle volume"><g>${figure('front', lvl)}</g><g transform="translate(130 0)">${figure('back', lvl)}</g><text x="50" y="211" class="bl">Front</text><text x="180" y="211" class="bl">Back</text></svg>`;
 }
+
+// The Build: each muscle tinted by its level (0..1 in vals). Tap a muscle to see it (data-act="muscle").
+export function buildMap(vals, opts = {}) {
+  const g = (side) => ANATOMY[side].map(([ids, parts]) => {
+    if (!ids.length) return `<g class="m n">${parts.map(poly).join('')}</g>`;
+    const v = Math.max(0, ...ids.map(i => vals[i] || 0)), id = ids.find(i => (vals[i] || 0) === v) || ids[0];
+    return `<g class="m bm" data-act="muscle" data-arg="${id}" style="--lv:${Math.round(v * 100)}%">${parts.map(poly).join('')}</g>`;
+  }).join('');
+  return `<svg class="body build" viewBox="0 0 230 ${opts.labels === false ? 204 : 214}" role="img" aria-label="Your muscles by level"><g>${g('front')}</g><g transform="translate(130 0)">${g('back')}</g>${opts.labels === false ? '' : '<text x="50" y="211" class="bl">Front</text><text x="180" y="211" class="bl">Back</text>'}</svg>`;
+}
