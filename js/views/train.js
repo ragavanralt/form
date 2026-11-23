@@ -20,7 +20,8 @@ export function vTrain() {
   let x = `<div class="top"><div><div class="sub">${h.sessions.length} workouts</div><h1>Train</h1></div><div class="row"><button class="iconbtn" data-act="library" aria-label="Exercise library">${I.book}</button><button class="iconbtn" data-act="importSheet" aria-label="Import">${I.upload}</button></div></div>`;
   x += `<div class="week">${wkDays.map(k => { const fx = planned(S, k), done = liftDone(get(k)); return `<button class="wd ${k === t ? 'today' : ''} ${done ? 'done' : ''}" data-act="planDay" data-arg="${k}"><span>${DOW[pdk(k).getDay()][0]}</span><b>${pdk(k).getDate()}</b><i class="d ${done ? 'done' : fx === 'rest' ? '' : k < t ? 'miss' : 'plan'}"></i></button>`; }).join('')}</div>`;
   const d = get(t), fx = planned(S, t);
-  if (d.wo && d.wo.status === 'active') x += `<button class="hcard c-train" data-act="openSession"><div class="hh"><span>${I.timer}In progress</span><i>${I.chev}</i></div><div class="vv">${esc(d.wo.name)}</div></button>`;
+  const aw = activeWo();
+  if (aw) x += `<button class="hcard c-train" data-act="openSession"><div class="hh"><span>${I.timer}In progress</span><i>${I.chev}</i></div><div class="vv">${esc(aw.name)}</div></button>`;
   else if (liftDone(d)) x += `<button class="hcard c-train" data-act="sessionDetail" data-arg="${t}"><div class="hh"><span>${I.check}Done today</span><i>${I.chev}</i></div><div class="vv">${esc(d.wo.name)}</div></button>`;
   else if (fx !== 'rest') { const r = S.routines.find(q => q.id === fx); x += `<div class="hcard c-train"><div class="hh"><span>${I.dumb}Today</span><i>${r ? r.ex.length + ' exercises' : ''}</i></div><div class="vv">${esc(routineName(S, fx))}</div><div class="row mt"><button class="btn grow" data-act="startPlanned">${I.play} Start</button><button class="btn ghost" data-act="pickWorkout">Other</button></div></div>`; }
   else x += `<button class="hcard c-train" data-act="pickWorkout"><div class="hh"><span>${I.moon}Rest day</span><i>Train anyway${I.chev}</i></div><div class="vv">Recover</div></button>`;
@@ -123,8 +124,8 @@ function prefill(e, before = todayK()) {
 }
 export function startWorkout(rid, name) {
   EDK = null;
+  if (activeWo()) { openSession(); return; }
   const t = todayK(), d = day(t);
-  if (d.wo && d.wo.status === 'active') { openSession(); return; }
   if (liftDone(d) && !confirm('You already finished a workout today. Start another? It replaces today’s.')) return;
   const r = S.routines.find(x => x.id === rid);
   d.wo = { id: uid(), rid: r ? r.id : '', name: r ? r.name : name || 'Workout', status: 'active', start: Date.now(), end: 0, ex: r ? r.ex.map(mkEx) : [] };
@@ -138,12 +139,25 @@ A.startEmpty = () => startWorkout('', 'Workout');
 A.openSession = () => { EDK = null; openSession(); };
 // EDK is set while editing a finished or past workout; otherwise the session is today's active one.
 let EDK = null;
-const activeWo = () => { const d = get(todayK()); return d.wo && d.wo.status === 'active' ? d.wo : null; };
+// The live workout is today's, or one started last night that's still going past midnight.
+export function activeKey() {
+  const t = todayK(), d = get(t); if (d.wo && d.wo.status === 'active') return t;
+  const y = addDays(t, -1), w = get(y).wo; if (w && w.status === 'active' && Date.now() - (w.start || 0) < 12 * 3600000) return y;
+  return '';
+}
+const activeWo = () => { const k = activeKey(); return k ? get(k).wo : null; };
 const curWo = () => (EDK ? get(EDK).wo || null : activeWo());
-const curK = () => EDK || todayK();
+const curK = () => EDK || activeKey() || todayK();
 const tw = () => touch(curK());
+// Whether you were on the live workout screen. Saved so that when the phone kills the app in the
+// background and it relaunches, you land back on the workout instead of Today. Only a manual
+// close (X, tapping outside, Escape, or switching tabs) clears it; see app.js.
+const UI_KEY = 'form2:ui';
+export function onWorkout(v) { try { if (v === undefined) return localStorage.getItem(UI_KEY) !== 'off'; localStorage.setItem(UI_KEY, v ? 'on' : 'off'); } catch (e) {} return true; }
+export function resumeWorkout() { if (!activeWo() || !onWorkout()) return false; EDK = null; openSession(); return true; }
 function openSession() {
   const w = curWo(); if (!w) return;
+  if (!EDK) onWorkout(true);
   const kind = Sheet.kind; const sc = kind === 'session' ? $('#sheet').scrollTop : 0;
   openSheet('session', (EDK ? 'Edit · ' : '') + esc(w.name), sessionHTML(w), { full: true, onClose: () => { if (EDK) { EDK = null; render(); } paintDock(); } });
   if (kind === 'session') $('#sheet').scrollTop = sc;
@@ -191,7 +205,7 @@ A.setDone = a => {
     if (!s.w) { const inp = document.querySelector(`[data-ch="setW"][data-i="${i}"][data-j="${j}"]`); s.w = inp && inp.placeholder !== '0' ? inp.placeholder : s.w; }
     if (!s.r) { const inp = document.querySelector(`[data-ch="setR"][data-i="${i}"][data-j="${j}"]`); s.r = inp ? inp.placeholder : ''; }
     if (!num(s.r)) { toast('Add the reps first'); return; }
-    s.done = true; s.pr = s.k === 'W' || EDK ? '' : prCheck(hist(), e.name, num(s.w), num(s.r), todayK());
+    s.done = true; s.pr = s.k === 'W' || EDK ? '' : prCheck(hist(), e.name, num(s.w), num(s.r), curK());
     if (s.pr) { haptic([20, 40, 20]); confetti(60); toast(s.pr + '! ' + e.name); }
     else haptic(12);
     if (!EDK && S.settings.autoRest !== false) startRest(restFor(e));
@@ -251,20 +265,20 @@ A.logPastGo = rid => {
 };
 A.histAll = () => { const ss = hist().sessions.slice().reverse(); openSheet('hall', 'All workouts', `<div class="list">${ss.map(s2 => `<button class="li noic" data-act="sessionDetail" data-arg="${s2.date}"><span><span class="t">${esc(s2.name)}</span><span class="s">${pdk(s2.date).toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} · ${s2.sets} sets</span></span><span class="chev">${I.chev}</span></button>`).join('')}</div><button class="btn ghost wide mt" data-act="logPast">${I.plus} Log a past workout</button>`, { full: true }); };
 A.woFinish = () => {
-  const w = curWo(); if (!w) return;
+  const w = curWo(); if (!w) return; const k = curK();
   if (!w.ex.some(e => e.sets.some(s => s.done || num(s.r)))) { toast('Complete at least one set first'); openSession(); return; }
   // the lineup goes back into the routine as planned, including exercises skipped today
   const lineup = w.ex.map(e => ({ name: e.name, sets: e.sets.filter(s => s.k !== 'W').length || e.sets.length, reps: e.reps, note: e.note, rest: e.rest || 0 }));
   w.ex.forEach(e => { e.sets = e.sets.filter(s => s.done || num(s.r)); });
   w.ex = w.ex.filter(e => e.sets.length);
-  w.ex.forEach(e => e.sets.forEach(s => { if (!s.done && num(s.r)) { s.done = true; s.pr = prCheck(hist(), e.name, num(s.w), num(s.r), todayK()); } }));
+  w.ex.forEach(e => e.sets.forEach(s => { if (!s.done && num(s.r)) { s.done = true; s.pr = prCheck(hist(), e.name, num(s.w), num(s.r), k); } }));
   w.status = 'done'; w.end = Date.now();
   // remember the edited lineup back into the routine
   const r = S.routines.find(x => x.id === w.rid);
   if (r) r.ex = lineup;
   tw(); endRest(); closeSheet(); render();
-  summary(todayK(), true);
-  postWorkout(todayK());
+  summary(k, true);
+  postWorkout(k);
 };
 A.sessionDetail = k => summary(k, false);
 function summary(k, fresh) {

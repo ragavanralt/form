@@ -6,7 +6,7 @@ import { initAI } from './ai.js';
 import { Social, ping } from './social.js';
 import { vToday } from './views/today.js';
 import './views/log.js';
-import { vTrain, paintDock } from './views/train.js';
+import { vTrain, paintDock, activeKey, onWorkout, resumeWorkout } from './views/train.js';
 import { vProgress, recapDue, openRecap } from './views/progress.js';
 import { vFriends, refresh, awaySheet, handleAddParam } from './views/friends.js';
 import { applyTheme } from './views/settings.js';
@@ -28,11 +28,15 @@ function paintTabs() {
 }
 R.after.push(paintTabs, paintDock);
 
+function show(v) {
+  R.cur = v; $$('.view').forEach(el => el.classList.toggle('on', el.id === 'v-' + v));
+}
 A.go = v => {
   if (!R.views[v] || (v === 'friends' && !on('friends'))) return;
+  onWorkout(false); // you chose another screen, so a relaunch shouldn't pull you back into the workout
   closeSheet();
   if (v === 'today') R.day = todayK();
-  R.cur = v; $$('.view').forEach(el => el.classList.toggle('on', el.id === 'v-' + v));
+  show(v);
   render(); window.scrollTo(0, 0);
   if (v === 'friends') refresh();
 };
@@ -46,7 +50,10 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('input', e => { const el = e.target.closest('[data-ch]'); if (!el) return; const f = CH[el.dataset.ch]; if (f && el.type !== 'range' || f && e.type === 'input') f(el, e); });
 document.addEventListener('change', e => { const el = e.target.closest('[data-ch]'); if (!el || el.tagName !== 'SELECT') return; const f = CH[el.dataset.ch]; if (f) f(el, e); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+// Closing a sheet by hand (X, tapping outside it, Escape) means you've left the workout screen on purpose.
+const closeByHand = () => { if (!$('#sheetwrap').hidden) onWorkout(false); closeSheet(); };
+A.closeSheet = closeByHand;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeByHand(); });
 
 // Re-render when the date changes or the app comes back to the foreground.
 let lastDay = todayK();
@@ -63,7 +70,12 @@ async function boot() {
   applyTheme();
   paintTabs();
   if (!S.onboarded) startOnboarding();
+  // Mid-workout and the app was closed or reloaded (iOS does this to home-screen apps in the
+  // background): open straight back onto the workout, unless you'd left it yourself.
+  const resume = S.onboarded && activeKey() && onWorkout();
+  if (resume) show('train');
   render();
+  if (resume) resumeWorkout();
   initAI();
   checkRewards();
   // On open, at most one thing pops up: a finished season's Wrapped, then last week's recap, then what friends did.
