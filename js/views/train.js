@@ -226,7 +226,7 @@ A.exRest = i => { const e = curWo().ex[+i]; openSheet('exr', 'Rest for ' + esc(e
 A.exRestSet = a => { const [i, v] = a.split('|').map(Number); curWo().ex[i].rest = v; tw(); openSession(); };
 A.woRename = () => { const w = curWo(); const n = prompt('Workout name', w.name); if (n) { w.name = n.trim(); tw(); } openSession(); };
 A.woDiscard = () => { if (!confirm(EDK ? 'Delete this workout? This can’t be undone.' : 'Discard this workout? Sets you logged will be deleted.')) return; const d = day(curK()); d.wo = null; tw(); if (!EDK) endRest(); EDK = null; closeSheet(); render(); };
-A.woMenu = () => { const w = curWo(); openSheet('wom', esc(w.name), `<div class="list"><button class="li noic" data-act="woRename"><span class="t">Rename</span><span class="chev">${I.chev}</span></button>${EDK ? '' : `<button class="li noic" data-act="woTime"><span><span class="t">Fix the start time</span><span class="s">Started ${elapsed(w.start)} ago</span></span><span class="chev">${I.chev}</span></button><button class="li noic" data-act="restSet"><span><span class="t">Rest timer</span><span class="s">${S.settings.autoRest === false ? 'Manual' : 'Starts after each set'} · ${restLbl(S.settings.rest)}</span></span><span class="chev">${I.chev}</span></button>`}<button class="li noic" data-act="woSaveR"><span><span class="t">Save as a new routine</span><span class="s">Keep this lineup for next time</span></span><span class="chev">${I.chev}</span></button><button class="li noic" data-act="woDiscard"><span class="t" style="color:#ff4545">${EDK ? 'Delete workout' : 'Discard workout'}</span><span></span></button></div><button class="btn ghost wide mt" data-act="openSessionKeep">Back to workout</button>`); };
+A.woMenu = () => { const w = curWo(); openSheet('wom', esc(w.name), `<div class="list"><button class="li noic" data-act="woRename"><span class="t">Rename</span><span class="chev">${I.chev}</span></button>${EDK ? '' : `<button class="li noic" data-act="woTime"><span><span class="t">Fix the start time</span><span class="s">Started ${elapsed(w.start)} ago</span></span><span class="chev">${I.chev}</span></button><button class="li noic" data-act="cardioAsk"><span><span class="t">Finish with cardio</span><span class="s">Saves the workout and starts a live timer</span></span><span class="chev">${I.run}</span></button><button class="li noic" data-act="restSet"><span><span class="t">Rest timer</span><span class="s">${S.settings.autoRest === false ? 'Manual' : 'Starts after each set'} · ${restLbl(S.settings.rest)}</span></span><span class="chev">${I.chev}</span></button>`}<button class="li noic" data-act="woSaveR"><span><span class="t">Save as a new routine</span><span class="s">Keep this lineup for next time</span></span><span class="chev">${I.chev}</span></button><button class="li noic" data-act="woDiscard"><span class="t" style="color:#ff4545">${EDK ? 'Delete workout' : 'Discard workout'}</span><span></span></button></div><button class="btn ghost wide mt" data-act="openSessionKeep">Back to workout</button>`); };
 A.openSessionKeep = () => openSession();
 A.woTime = () => { const w = curWo(); openSheet('wot', 'Started how long ago?', `<div class="field"><span>Minutes ago</span><input id="wotm" type="number" inputmode="numeric" value="${Math.round((Date.now() - w.start) / 60000)}"></div><div class="row wrap mt" style="gap:6px">${[0, 15, 30, 45, 60, 90].map(m => `<button class="chip" data-act="woTimeSet" data-arg="${m}">${m ? m + ' min' : 'Just now'}</button>`).join('')}</div><button class="btn wide mt2" data-act="woTimeSet">Save</button>`); };
 A.woTimeSet = m => { const w = curWo(); const v = m != null && m !== '' ? +m : nint(($('#wotm') || {}).value); w.start = Date.now() - Math.max(0, v) * 60000; tw(); toast('Start time fixed'); openSession(); };
@@ -265,7 +265,11 @@ A.logPastGo = rid => {
   touch(k); EDK = k; openSession();
 };
 A.histAll = () => { const ss = hist().sessions.slice().reverse(); openSheet('hall', 'All workouts', `<div class="list">${ss.map(s2 => `<button class="li noic" data-act="sessionDetail" data-arg="${s2.date}"><span><span class="t">${esc(s2.name)}</span><span class="s">${pdk(s2.date).toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} · ${s2.sets} sets</span></span><span class="chev">${I.chev}</span></button>`).join('')}</div><button class="btn ghost wide mt" data-act="logPast">${I.plus} Log a past workout</button>`, { full: true }); };
-A.woFinish = () => { const k = finishLift(); if (!k) return; summary(k, true); postWorkout(k); };
+A.woFinish = () => {
+  // Finishing by hand also offers cardio, once, if it wasn't offered on the last set.
+  const w = curWo();
+  if (w && !EDK && !w.cAsk && cardioWanted() && w.ex.some(e => e.sets.some(s => s.done || num(s.r)))) { w.cAsk = 1; tw(); endRest(); cardioAsk(); return; }
+  const k = finishLift(); if (!k) return; summary(k, true); postWorkout(k); };
 // Saves the live workout as done. Returns its day, or '' if there was nothing to save.
 function finishLift() {
   const w = curWo(); if (!w) return ''; const k = curK();
@@ -416,7 +420,8 @@ const clock = ms => { const t = Math.floor(ms / 1000), h = Math.floor(t / 3600),
 const kcalFor = (type, min) => Math.round(((CARDIO_MET[type] || 5) * 3.5 * (+S.profile.weightKg || 75)) / 200 * min);
 const cardioKcal = ms => '~' + kcalFor(CL ? CL.type : '', ms / 60000) + ' kcal';
 // Offered after the last set if you're cutting or you track cardio.
-const cardioWanted = () => !!(S.modules.cardio || S.profile.goal === 'cut' || (S.profile.goals || []).includes('cut'));
+// You're cutting, you track cardio, or you've logged any cardio in the last 30 days.
+const cardioWanted = () => !!(S.modules.cardio || S.profile.goal === 'cut' || (S.profile.goals || []).includes('fat') || Array.from({ length: 30 }, (_, i) => get(addDays(todayK(), -i))).some(d => (d.cardio || []).length));
 // Your usual: the type you've logged most often (ties go to the most recent).
 function usualCardio() {
   const n = {}, last = {};
@@ -426,7 +431,8 @@ function usualCardio() {
 }
 function cardioAsk() {
   const u = usualCardio(), goal = +S.targets.cardio || 0, did = (get(todayK()).cardio || []).reduce((a, c) => a + (+c.min || 0), 0), left = Math.max(0, goal - did);
-  openSheet('cask', 'All sets done', `<p class="muted" style="margin-top:-6px">${S.profile.goal === 'cut' ? 'Cutting? ' : ''}Finish with cardio${left && S.modules.cardio ? `: <b style="color:var(--ink)">${left} min</b> left on today’s goal` : ''}. Your workout gets saved and a live timer starts.</p>
+  const w = activeWo(), all = w && w.ex.length && w.ex.every(e => e.sets.every(x => x.done));
+  openSheet('cask', all ? 'All sets done' : 'Finish with cardio?', `<p class="muted" style="margin-top:-6px">${S.profile.goal === 'cut' ? 'Cutting? ' : ''}Finish with cardio${left && S.modules.cardio ? `: <b style="color:var(--ink)">${left} min</b> left on today’s goal` : ''}. Your workout gets saved and a live timer starts.</p>
   <button class="btn wide mt2" data-act="cardioGo" data-arg="${esc(u)}|fin">${I.play} Start ${esc(u.toLowerCase())}</button>
   <div class="lab faint small b mt2">OR SOMETHING ELSE</div><div class="row wrap mt" style="gap:6px">${CARDIO.filter(t => t !== u).map(t => `<button class="chip" data-act="cardioGo" data-arg="${esc(t)}|fin">${esc(t)}</button>`).join('')}</div>
   <div class="row mt2" style="gap:8px"><button class="btn ghost grow" data-act="openSessionKeep">Back to workout</button><button class="btn ghost grow" data-act="woFinish">Finish, no cardio</button></div>`);
