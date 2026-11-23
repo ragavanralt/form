@@ -90,4 +90,14 @@ t('drawings: every exercise maps to a pattern and draws clean SVG', () => {
   assert.ok(PATTERNS.includes(patternFor({ n: 'Cable Y-Raise', p: ['delts'], e: 'Cable' })[0]));
   assert.ok(PATTERNS.includes(patternFor({ n: 'Mystery move', p: ['glutes'], e: 'Band' })[0]));
 });
+
+t('drop: never water if you never log water, and one swap a day', async () => {
+  const { swapDrop } = await import('../js/drop.js');
+  const S = seedState(30, T); Object.values(S.days).forEach(d => { d.water = 0; });
+  for (let i = 0; i < 40; i++) { S.drops = {}; S.profile.start = addDays(T, -30 - i); assert.notEqual(dropFor(S, todayK()).id, 'water'); }
+  S.drops = { [todayK()]: { id: 'water', p: { ml: 2500 }, done: false } };
+  assert.notEqual(dropFor(S, todayK()).id, 'water', 'an old water drop gets re-picked');
+  const first = dropFor(S, todayK()).id, sw = swapDrop(S);
+  assert.ok(sw && sw.id !== first); assert.equal(swapDrop(S), null, 'only one swap');
+});
 console.log('all feature tests passed');

@@ -1,6 +1,6 @@
 // Daily Drop: one small challenge a day, picked from what you actually track, gone at midnight.
 // The pick is stored the first time it is shown, so it doesn't change as the day goes on. Pure.
-import { totals, cardioMin, liftDone, planned, score, num, e1rm, fmt, calFrac, todayK } from './core.js';
+import { totals, cardioMin, liftDone, planned, score, num, e1rm, fmt, calFrac, todayK, addDays } from './core.js';
 import { buildOf } from './build.js';
 import { findEx } from './exercises.js';
 
@@ -77,6 +77,14 @@ const KINDS = {
   },
 };
 
+// Only pick things you actually log: a module being on isn't enough (you might never tap water in).
+const recent = (S, k, f, n = 14) => { for (let i = 1; i <= n; i++) { const d = S.days[addDays(k, -i)]; if (d && f(d)) return true; } return false; };
+const USED = {
+  protein: (S, k) => recent(S, k, d => (d.meals || []).length > 0), window: (S, k) => recent(S, k, d => (d.meals || []).length > 0),
+  steps: (S, k) => recent(S, k, d => d.steps > 0), cardio: (S, k) => recent(S, k, d => cardioMin(d) > 0),
+  water: (S, k) => recent(S, k, d => d.water > 0), weigh: (S, k) => recent(S, k, d => d.weight > 0, 30),
+};
+const used = (S, k, id) => !USED[id] || USED[id](S, k);
 function context(S, k) {
   const fx = planned(S, k), routine = fx !== 'rest' ? S.routines.find(r => r.id === fx) : null;
   const train = !!(S.modules.train && routine && routine.ex.length);
@@ -88,23 +96,40 @@ function context(S, k) {
 }
 
 // The drop for day k. For today it is picked and saved on first sight; past days only show what was saved.
-export function dropFor(S, k = todayK(), save = true) {
+export function dropFor(S, k = todayK(), save = true, skip = []) {
   let rec = S.drops && S.drops[k];
+  // a drop picked for something you've since turned off (or never log) gets re-picked
+  if (rec && !rec.done && !rec.chk && save && k === todayK() && KINDS[rec.id]) {
+    if (!safeOk(S, k, rec.id) || (['water', 'weigh'].includes(rec.id) && !used(S, k, rec.id))) { skip = [...skip, rec.id]; delete S.drops[k]; rec = null; }
+    else rec.chk = 1;
+  }
   if (!rec) {
     if (k !== todayK() || !save) return null;
     const c = context(S, k);
-    const pool = Object.keys(KINDS).filter(id => { try { return KINDS[id].ok(S, k, c); } catch (e) { return false; } });
+    const able = Object.keys(KINDS).filter(id => !skip.includes(id) && (() => { try { return KINDS[id].ok(S, k, c); } catch (e) { return false; } })());
+    const real = able.filter(id => used(S, k, id)), pool = real.length ? real : able.filter(id => id !== 'water' && id !== 'weigh');
     const trainy = pool.filter(id => ['beat', 'volume', 'cold'].includes(id)), other = pool.filter(id => !trainy.includes(id));
     const h = hash(k + (S.profile.start || ''));
     const list = trainy.length && (h % 10 < 6 || !other.length) ? trainy : other.length ? other : trainy;
     if (!list.length) return null;
     const id = list[(h >> 3) % list.length];
-    rec = S.drops[k] = { id, p: KINDS[id].make(S, k, c), done: false };
+    rec = S.drops[k] = { id, p: KINDS[id].make(S, k, c), done: false, chk: 1 };
   }
   const K = KINDS[rec.id]; if (!K) return null;
   const d = S.days[k] || { meals: [], cardio: [], supps: {}, steps: 0, water: 0, weight: 0 };
   let prog = 0; try { prog = K.prog(S, d, rec.p, k); } catch (e) {}
   return { k, id: rec.id, ...K.text(rec.p, S), prog: Math.max(0, Math.min(1, prog || 0)), done: prog >= 1, rec };
+}
+function safeOk(S, k, id) { if (['beat', 'volume', 'cold'].includes(id)) return !!S.modules.train; try { return KINDS[id].ok(S, k, context(S, k)); } catch (e) { return false; } }
+// Not feeling it? One swap a day for a different kind of drop.
+export function swapDrop(S, k = todayK()) {
+  const old = S.drops[k]; if (!old || old.done || old.sw) return null;
+  delete S.drops[k];
+  const T3 = ['beat', 'volume', 'cold'];
+  let d = dropFor(S, k, true, T3.includes(old.id) ? T3 : [old.id]); // a gym drop swaps for a non-gym one
+  if (!d) d = dropFor(S, k, true, [old.id]);
+  if (!d) { S.drops[k] = old; return null; }
+  d.rec.sw = 1; return d;
 }
 // Drops completed so far (counts once per day).
 export const dropsDone = S => Object.values(S.drops || {}).filter(r => r.done).length;

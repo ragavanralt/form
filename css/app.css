@@ -1019,3 +1019,4 @@ body::before{content:"";position:fixed;inset:-20% -10% auto;height:70vh;pointer-
 .hero4 .hs .tierdot::after{content:"";width:13px;height:13px;border-radius:50%;background:var(--tc);box-shadow:0 0 10px var(--tc)}
 .wbig.word{font-size:clamp(48px,16vw,92px)}
 .hello .hlogo{position:absolute;right:-6px;top:-6px;width:210px;height:210px;border-radius:44px;transform:rotate(8deg);box-shadow:0 20px 50px rgba(0,0,0,.5),0 0 60px color-mix(in srgb,var(--acc) 30%,transparent)}
+.dropc[data-act]{cursor:pointer;transition:transform .15s}.dropc[data-act]:active{transform:scale(.985)}.dropc .link{color:var(--acc2);font-weight:700}

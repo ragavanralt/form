@@ -4,7 +4,7 @@ import { todayK, addDays, wkStart, fmt, esc, pdk, WIN } from '../core.js';
 import { A, I, $, openSheet, setSheet, closeSheet, toast, haptic, confetti, avatar, FRAME_BG } from '../ui.js';
 import { buildMap } from '../body.js';
 import { heatOf, daysAgo, WEEK_SETS, setsFor } from '../build.js';
-import { dropFor, dropsDone } from '../drop.js';
+import { dropFor, dropsDone, swapDrop } from '../drop.js';
 import { grant, openCrate, unopened, owned, rarityOf, itemName, TITLES, FRAMES } from '../loot.js';
 import { findEx, allEx, MUSCLES } from '../exercises.js';
 import { exDrawing } from '../draw.js';
@@ -44,11 +44,19 @@ export function dropCard() {
   if (!d.rec.saved) { d.rec.saved = 1; setTimeout(save, 0); }
   if (d.done && !d.rec.done) setTimeout(() => dropDone(d), 50);
   const n = unopened(S).length;
-  return `<div class="card dropc ${d.done ? 'done' : ''}"><div class="dtop"><span class="dlab">${I.bolt}Today’s drop</span><span class="faint small">${d.done ? 'Done' : 'Ends at midnight'}</span></div>
+  return `<div class="card dropc ${d.done ? 'done' : ''}" data-act="dropGo" role="button"><div class="dtop"><span class="dlab">${I.bolt}Today’s drop</span>${d.done ? '<span class="faint small">Done</span>' : d.rec.sw ? '<span class="faint small">Ends at midnight</span>' : '<button class="link small" data-act="dropSwap">Swap</button>'}</div>
     <b class="dt">${esc(d.t)}</b><span class="ds">${esc(d.s)}</span>
     <div class="pbar c-accent" style="height:6px;margin-top:10px"><i style="width:${Math.round(d.prog * 100)}%"></i></div>
     ${on('loot') && n ? `<button class="btn sm wide mt" data-act="rewards">${I.star} Open your reward${n > 1 ? 's (' + n + ')' : ''}</button>` : ''}</div>`;
 }
+// Tapping the drop takes you straight to whatever logs it.
+const DROP_GO = { beat: 'startPlanned', volume: 'startPlanned', cold: 'pickWorkout', protein: 'log', window: 'log', steps: 'steps', cardio: 'cardio', weigh: 'weight', score: 'closeDay' };
+A.dropGo = () => {
+  const d = dropFor(S, todayK()); if (!d || d.done) return;
+  if (d.id === 'water') { A.water(250); toast('+250 ml water'); return; }
+  const f = A[DROP_GO[d.id]]; if (f) f();
+};
+A.dropSwap = () => { const d = swapDrop(S); if (!d) return; save(); render(); toast('New drop: ' + d.t); };
 function dropDone(d) {
   if (d.rec.done) return;
   d.rec.done = true; d.rec.at = Date.now();

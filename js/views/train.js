@@ -97,7 +97,7 @@ A.libE = e => { LIB.e = e; setSheet(libHTML()); };
 A.exAdd = n => {
   const x = exInfo(n); const reps = ['abs', 'obliques', 'calves', 'delts', 'rdelt', 'biceps', 'triceps', 'forearms'].includes(x.p[0]) ? '10–15' : '8–12';
   if (LIB.mode === 'routine') { ED.ex.push({ name: n, sets: 3, reps, note: '' }); routineEditor(); }
-  else if (LIB.mode === 'session') { const w = curWo(); if (!w) return; w.ex.push(mkEx({ name: n, sets: 3, reps })); tw(); openSession(); }
+  else if (LIB.mode === 'session') { const w = curWo(); if (!w) return; w.ex.push(prefill(mkEx({ name: n, sets: 3, reps }), curK())); tw(); openSession(); }
 };
 A.exCustom = () => { setSheet(`<div class="col"><div class="field"><span>Name</span><input id="cxn" placeholder="Cable Y-Raise"></div><div class="field"><span>Main muscle</span><select id="cxm">${Object.entries(MUSCLES).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div><div class="field"><span>Equipment</span><select id="cxe">${EQUIP.map(e => `<option>${e}</option>`).join('')}</select></div><button class="btn wide" data-act="exCustomSave">Save exercise</button><button class="btn ghost wide" data-act="libBack">Back</button></div>`); };
 A.exCustomSave = () => { const n = ($('#cxn').value || '').trim(); if (!n) return; S.customEx.push({ n, p: [$('#cxm').value], s: [], e: $('#cxe').value, c: '' }); touch(); LIB.q = n; setSheet(libHTML()); };
@@ -115,6 +115,12 @@ A.exDetail = n => {
 
 /* ---------- sessions ---------- */
 function mkEx(e) { const info = exInfo(e.name); return { id: uid(), name: e.name, muscle: info.p[0], reps: e.reps || '8–12', note: e.note || '', rest: +e.rest || 0, sets: Array.from({ length: +e.sets || 3 }, () => ({ w: '', r: '', k: 'N', done: false })) }; }
+// Fill each set with last time's weight and reps (warm-ups aside), so a normal session is just ticking boxes.
+function prefill(e, before = todayK()) {
+  const last = (hist().map[e.name] || []).filter(x => x.date < before).at(-1); if (!last) return e;
+  e.sets.forEach((s, i) => { const p = last.sets[i] || last.sets.at(-1); if (p && !s.w && !s.r && !s.done) { s.w = String(p.w); s.r = String(p.r); } });
+  return e;
+}
 export function startWorkout(rid, name) {
   EDK = null;
   const t = todayK(), d = day(t);
@@ -122,8 +128,7 @@ export function startWorkout(rid, name) {
   if (liftDone(d) && !confirm('You already finished a workout today. Start another? It replaces today’s.')) return;
   const r = S.routines.find(x => x.id === rid);
   d.wo = { id: uid(), rid: r ? r.id : '', name: r ? r.name : name || 'Workout', status: 'active', start: Date.now(), end: 0, ex: r ? r.ex.map(mkEx) : [] };
-  // prefill weights from last time
-  const h = hist(); d.wo.ex.forEach(e => { const last = (h.map[e.name] || []).at(-1); if (last) e.sets.forEach((s, i) => { const p = last.sets[i] || last.sets.at(-1); if (p) { s.w = String(p.w); s.ph = p.r; } }); });
+  d.wo.ex.forEach(e => prefill(e, t));
   touch(t); closeSheet(); openSession(); render();
 }
 A.startPlanned = () => { const fx = planned(S, todayK()); if (fx === 'rest') { A.pickWorkout(); return; } startWorkout(fx); };
@@ -165,8 +170,15 @@ function sessionHTML(w) {
   <div class="row mt2"><button class="btn danger" data-act="woDiscard" aria-label="${EDK ? 'Delete' : 'Discard'} workout">${I.trash}</button><button class="btn grow" data-act="${EDK ? 'woSave' : 'woFinish'}">${EDK ? 'Save changes' : 'Finish workout'}</button></div>`;
 }
 const elapsed = s => { const m = Math.floor((Date.now() - s) / 60000); return m >= 60 ? Math.floor(m / 60) + 'h ' + (m % 60) + 'm' : m + ' min'; };
-CH.setW = el => { const w = curWo(); if (!w) return; w.ex[+el.dataset.i].sets[+el.dataset.j].w = el.value; tw(); };
-CH.setR = el => { const w = curWo(); if (!w) return; w.ex[+el.dataset.i].sets[+el.dataset.j].r = el.value; tw(); };
+// Typing in a set fills the sets below it that you haven't touched or finished yet.
+function fillDown(el, f) {
+  const w = curWo(); if (!w) return;
+  const i = +el.dataset.i, j = +el.dataset.j, e = w.ex[i], s0 = e.sets[j]; s0[f] = el.value; s0['e' + f] = 1;
+  e.sets.forEach((s, j2) => { if (j2 <= j || s.done || s['e' + f] || s.k === 'W') return; s[f] = el.value; const inp = document.querySelector(`[data-ch="set${f.toUpperCase()}"][data-i="${i}"][data-j="${j2}"]`); if (inp) inp.value = el.value; });
+  tw();
+}
+CH.setW = el => fillDown(el, 'w');
+CH.setR = el => fillDown(el, 'r');
 CH.woDur = el => { const w = curWo(); if (!w) return; if (!w.start) w.start = pdk(curK()).getTime() + 12 * 3600000; w.end = w.start + Math.max(0, nint(el.value)) * 60000; tw(); };
 const KINDS = { N: 'W', W: 'D', D: 'F', F: 'N' }, KIND_L = { N: 'Working set', W: 'Warm-up set', D: 'Drop set', F: 'Set to failure' };
 A.setKind = a => { const [i, j] = a.split('|').map(Number); const s = curWo().ex[i].sets[j]; s.k = KINDS[s.k] || 'N'; if (s.k === 'W') s.pr = ''; toast(KIND_L[s.k]); tw(); openSession(); };
@@ -193,7 +205,7 @@ A.exMove = a => { const [i, d] = a.split('|').map(Number), w = curWo(), j = i + 
 A.exRemove = i => { curWo().ex.splice(+i, 1); tw(); openSession(); };
 let swapIdx = -1;
 A.exSwap = i => { swapIdx = +i; const cur = exInfo(curWo().ex[swapIdx].name); const alts = allEx(S.customEx).filter(x => x.p[0] === cur.p[0] && x.n !== cur.n); openSheet('swap', 'Swap for', `<div class="list">${alts.map(x => `<button class="exrow" data-act="exSwapTo" data-arg="${esc(x.n)}"><span class="th">${thumb(x.n)}</span><span><b>${esc(x.n)}</b><span>${x.e}</span></span><span class="chev">${I.chev}</span></button>`).join('')}</div>`); };
-A.exSwapTo = n => { const w = curWo(), e = w.ex[swapIdx]; const ne = mkEx({ name: n, sets: e.sets.length, reps: e.reps }); w.ex[swapIdx] = ne; tw(); openSession(); };
+A.exSwapTo = n => { const w = curWo(), e = w.ex[swapIdx]; const ne = prefill(mkEx({ name: n, sets: e.sets.length, reps: e.reps }), curK()); w.ex[swapIdx] = ne; tw(); openSession(); };
 A.exNote = i => { const e = curWo().ex[+i]; const n = prompt('Note for ' + e.name + ' (seat height, grip, cues…)', e.note || ''); if (n != null) { e.note = n.trim(); tw(); } openSession(); };
 A.exRest = i => { const e = curWo().ex[+i]; openSheet('exr', 'Rest for ' + esc(e.name), `<div class="row wrap" style="gap:6px">${[[0, 'Default'], [45, '0:45'], [60, '1:00'], [90, '1:30'], [120, '2:00'], [150, '2:30'], [180, '3:00'], [240, '4:00'], [300, '5:00']].map(([v, l]) => `<button class="chip ${(e.rest || 0) === v ? 'on' : ''}" data-act="exRestSet" data-arg="${i}|${v}">${l}</button>`).join('')}</div><p class="faint small mt">Default is ${restLbl(S.settings.rest)}, shorter for small muscles. Saved to the routine when you finish.</p>`); };
 A.exRestSet = a => { const [i, v] = a.split('|').map(Number); curWo().ex[i].rest = v; tw(); openSession(); };
@@ -234,7 +246,7 @@ A.logPastGo = rid => {
   if (d.wo && !confirm('There’s already a workout on that day. Replace it?')) return;
   const r = S.routines.find(x => x.id === rid), st = pdk(k).getTime() + 12 * 3600000;
   d.wo = { id: uid(), rid: r ? r.id : '', name: r ? r.name : 'Workout', status: 'done', start: st, end: st + 3600000, ex: r ? r.ex.map(mkEx) : [] };
-  const h = hist(); d.wo.ex.forEach(e => { const last = (h.map[e.name] || []).filter(x => x.date < k).at(-1); if (last) e.sets.forEach((s, i) => { const p = last.sets[i] || last.sets.at(-1); if (p) { s.w = String(p.w); s.ph = p.r; } }); });
+  d.wo.ex.forEach(e => prefill(e, k));
   touch(k); EDK = k; openSession();
 };
 A.histAll = () => { const ss = hist().sessions.slice().reverse(); openSheet('hall', 'All workouts', `<div class="list">${ss.map(s2 => `<button class="li noic" data-act="sessionDetail" data-arg="${s2.date}"><span><span class="t">${esc(s2.name)}</span><span class="s">${pdk(s2.date).toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} · ${s2.sets} sets</span></span><span class="chev">${I.chev}</span></button>`).join('')}</div><button class="btn ghost wide mt" data-act="logPast">${I.plus} Log a past workout</button>`, { full: true }); };
