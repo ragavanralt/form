@@ -220,7 +220,7 @@ A.exMove = a => { const [i, d] = a.split('|').map(Number), w = curWo(), j = i + 
 A.exRemove = i => { curWo().ex.splice(+i, 1); tw(); openSession(); };
 let swapIdx = -1;
 A.exSwap = i => { swapIdx = +i; const cur = exInfo(curWo().ex[swapIdx].name); const alts = allEx(S.customEx).filter(x => x.p[0] === cur.p[0] && x.n !== cur.n); openSheet('swap', 'Swap for', `<div class="list">${alts.map(x => `<button class="exrow" data-act="exSwapTo" data-arg="${esc(x.n)}"><span class="th">${thumb(x.n)}</span><span><b>${esc(x.n)}</b><span>${x.e}</span></span><span class="chev">${I.chev}</span></button>`).join('')}</div>`); };
-A.exSwapTo = n => { const w = curWo(), e = w.ex[swapIdx]; const ne = prefill(mkEx({ name: n, sets: e.sets.length, reps: e.reps }), curK()); w.ex[swapIdx] = ne; tw(); openSession(); };
+A.exSwapTo = n => { const w = curWo(), e = w.ex[swapIdx]; const ne = prefill(mkEx({ name: n, sets: e.sets.length, reps: e.reps }), curK()); ne.was = e.was || e.name; w.ex[swapIdx] = ne; tw(); openSession(); };
 A.exNote = i => { const e = curWo().ex[+i]; const n = prompt('Note for ' + e.name + ' (seat height, grip, cues…)', e.note || ''); if (n != null) { e.note = n.trim(); tw(); } openSession(); };
 A.exRest = i => { const e = curWo().ex[+i]; openSheet('exr', 'Rest for ' + esc(e.name), `<div class="row wrap" style="gap:6px">${[[0, 'Default'], [45, '0:45'], [60, '1:00'], [90, '1:30'], [120, '2:00'], [150, '2:30'], [180, '3:00'], [240, '4:00'], [300, '5:00']].map(([v, l]) => `<button class="chip ${(e.rest || 0) === v ? 'on' : ''}" data-act="exRestSet" data-arg="${i}|${v}">${l}</button>`).join('')}</div><p class="faint small mt">Default is ${restLbl(S.settings.rest)}, shorter for small muscles. Saved to the routine when you finish.</p>`); };
 A.exRestSet = a => { const [i, v] = a.split('|').map(Number); curWo().ex[i].rest = v; tw(); openSession(); };
@@ -345,15 +345,26 @@ function ghostSets(name) { const k = curK(); const last = (hist().map[name] || [
 const vol = sets => sets.reduce((a, s) => a + num(s.w) * num(s.r), 0);
 // The ghost lifts last time's volume at last time's pace: it starts at 0 when you start and moves
 // every second, finishing at last time's total after last time's duration (or ~2.5 min a set if unknown).
+// The ghost is your last run of this same workout, whole: swapping or adding exercises today doesn't
+// shrink it, and everything you lift today counts for you. With no earlier run, it races each exercise's last time.
+const doneVol = sets => vol(sets.filter(s => s.done && s.k !== 'W'));
+function ghostSession(w) {
+  const k = curK(), ks = Object.keys(S.days).filter(d => d < k).sort();
+  for (let i = ks.length - 1; i >= 0; i--) { const o = S.days[ks[i]].wo; if (o && o.status === 'done' && Array.isArray(o.ex) && ((w.rid && o.rid === w.rid) || o.name === w.name)) return o; }
+  return null;
+}
+const exGhost = e => ghostSets(e.name) || (e.was ? ghostSets(e.was) : null);
 function ghostOf(w) {
-  let G = 0, Y = 0, n = 0, any = false;
-  w.ex.forEach(e => { const g = ghostSets(e.name); if (!g) return; any = true; G += vol(g); n += g.length; Y += vol(e.sets.filter(s => s.done && s.k !== 'W')); });
-  if (!any) return null;
-  const prev = hist().sessions.filter(x => x.name === w.name && x.date < curK()).at(-1);
-  const dur = prev && prev.dur >= 10 * 60000 && prev.dur <= 4 * 3600000 ? prev.dur : Math.max(10, n) * 150000;
+  const Y = w.ex.reduce((a, e) => a + doneVol(e.sets), 0);
+  let G = 0, n = 0, dur = 0;
+  const prev = ghostSession(w);
+  if (prev) { prev.ex.forEach(e => { const ss = (e.sets || []).filter(x => x.done && x.k !== 'W'); G += vol(ss); n += ss.length; }); dur = prev.end && prev.start ? prev.end - prev.start : 0; }
+  if (!G) w.ex.forEach(e => { const g = exGhost(e); if (g) { G += vol(g); n += g.length; } });
+  if (!G) return null;
+  if (!(dur >= 10 * 60000 && dur <= 4 * 3600000)) dur = Math.max(10, n) * 150000;
   const live = !EDK && w.status === 'active' && w.start;
   const at = live ? Math.round(G * Math.min(1, Math.max(0, Date.now() - w.start) / dur)) : G;
-  return { G, Y, at, live };
+  return { G: Math.round(G), Y: Math.round(Y), at, live };
 }
 function ghostText(g) {
   const u = unit();
@@ -382,7 +393,7 @@ function liveTick() {
 setInterval(liveTick, 1000);
 function ghostDelta(e) {
   if (!on('ghost')) return '';
-  const g = ghostSets(e.name), mine = e.sets.filter(s => s.done && s.k !== 'W'); if (!g || !mine.length) return '';
+  const g = exGhost(e), mine = e.sets.filter(s => s.done && s.k !== 'W'); if (!g || !mine.length) return '';
   const d = Math.round(vol(mine) - vol(g.slice(0, mine.length)));
   return ` · <b class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${fmt(Math.abs(d))} ${unit()} vs ghost</b>`;
 }
