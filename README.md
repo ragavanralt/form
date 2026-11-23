@@ -32,10 +32,11 @@ The friends features run on Supabase. The app is already pointed at the project 
 
 ## Notifications server (one-time setup)
 
-Phone notifications need two things in the same Supabase project, after the friends setup:
+Phone notifications need three steps in the same Supabase project, after the friends setup. Nothing secret is pasted anywhere: the database makes its own cron secret, and the Edge Function makes its own signing keys on its first run.
 
-1. **SQL Editor**: paste all of `supabase/push-setup.local.sql` and press **Run**. That file is made for you locally and is not in git, because it holds your private signing key. (Without it, run `supabase/push.sql`, then add your own keys to `fm_push_keys` and schedule the cron job the same way.) It creates the `fm_push` tables and functions and a pg_cron job that runs every 10 minutes.
-2. **Edge Functions → Deploy a new function → Via editor**: name it `lifted-push`, paste all of `supabase/functions/lifted-push/index.ts`, and deploy.
+1. **SQL Editor**: run all of `supabase/push.sql` (tables and functions).
+2. **Edge Functions → Deploy a new function → Via editor**: name it `lifted-push`, paste all of `supabase/functions/lifted-push/index.ts`, deploy, and turn off **Enforce JWT verification** in its settings (the cron secret is the check).
+3. **SQL Editor**: run all of `supabase/push-cron.sql`, which calls the function every 10 minutes.
 
 Then on the phone: open Lifted from the Home Screen, Settings → Notifications → Turn on notifications. On iPhone this needs iOS 16.4 or later, and only works from the Home Screen app.
 

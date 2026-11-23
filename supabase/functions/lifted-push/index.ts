@@ -48,6 +48,12 @@ export async function sendPush(sub, payload, keys, f = fetch) {
   return r.status;
 }
 
+export async function newVapid() {
+  const k = await subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const pub = new Uint8Array(await subtle.exportKey('raw', k.publicKey)), jwk = await subtle.exportKey('jwk', k.privateKey);
+  return { public: b64u.enc(pub), private: jwk.d };
+}
+
 /* ---------- what is due for one phone ---------- */
 const DEF = { remind: true, streak: true, drop: true, friends: true, morning: '08:30', gym: '18:00', evening: '21:00' };
 const mins = hm => { const m = /^(\d{1,2}):(\d{2})$/.exec(hm || ''); return m ? +m[1] * 60 + +m[2] : -1; };
@@ -92,8 +98,15 @@ function prevDay(day) { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.g
 /* ---------- the function ---------- */
 export async function run(secret, env, f = fetch, now = Date.now()) {
   const rpc = (fn, args) => f(`${env.url}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: env.key, authorization: 'Bearer ' + env.key, 'content-type': 'application/json' }, body: JSON.stringify(args) }).then(r => r.json());
-  const b = await rpc('fm_push_batch', { p_secret: secret });
+  let b = await rpc('fm_push_batch', { p_secret: secret });
   if (!b || !b.ok) return { ok: false, error: (b && b.error) || 'batch' };
+  // First run: make the VAPID signing key pair here, so no key ever has to be pasted anywhere.
+  if (!b.keys || !b.keys.public || !b.keys.private) {
+    const k = await newVapid();
+    await rpc('fm_push_setkeys', { p_secret: secret, p_public: k.public, p_private: k.private });
+    b = await rpc('fm_push_batch', { p_secret: secret });
+    if (!b || !b.ok || !b.keys || !b.keys.public) return { ok: false, error: 'keys' };
+  }
   let sent = 0, gone = 0;
   for (const dev of b.devices || []) {
     const d = due(dev, now);
@@ -106,10 +119,10 @@ export async function run(secret, env, f = fetch, now = Date.now()) {
   }
   return { ok: true, devices: (b.devices || []).length, sent, gone };
 }
-// Deno only: the HTTP entry point. pg_cron sends the shared secret in x-cron.
+// Deno only: the HTTP entry point. pg_cron sends the shared secret in x-cron. (Turn off "Enforce JWT verification" for this function: the secret is the check.)
 if (typeof Deno !== 'undefined') {
   Deno.serve(async (req) => {
-    const out = await run(req.headers.get('x-cron') || '', { url: Deno.env.get('SUPABASE_URL'), key: Deno.env.get('SUPABASE_ANON_KEY') });
+    const out = await run(req.headers.get('x-cron') || '', { url: Deno.env.get('SUPABASE_URL'), key: Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') });
     return new Response(JSON.stringify(out), { status: out.ok ? 200 : 401, headers: { 'content-type': 'application/json' } });
   });
 }

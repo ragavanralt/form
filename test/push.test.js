@@ -59,8 +59,15 @@ if (PGlite) {
   await db.exec(fs.readFileSync(new URL('../supabase/form-schema.sql', import.meta.url), 'utf8'));
   const push = fs.readFileSync(new URL('../supabase/push.sql', import.meta.url), 'utf8');
   await db.exec(push); await db.exec(push);
-  await db.exec(`insert into fm_push_keys values ('cron', 's3cret'), ('public', 'PUB'), ('private', 'PRIV'), ('subject', 'https://x') on conflict do nothing`);
+  await db.exec(`update fm_push_keys set v = 's3cret' where k = 'cron'`);
   const call = async (fn, args) => { const keys = Object.keys(args); await db.exec('set role anon'); try { const r = await db.query(`select ${fn}(${keys.map((k, i) => `${k} => $${i + 1}`).join(', ')}) as r`, keys.map(k => (args[k] !== null && typeof args[k] === 'object' ? JSON.stringify(args[k]) : args[k]))); return r.rows[0].r; } finally { await db.exec('reset role'); } };
+  await t('SQL: no signing key until the sender makes one; only with the secret, only once', async () => {
+    assert.equal((await call('fm_push_vapid', {})).key, null);
+    assert.equal((await call('fm_push_setkeys', { p_secret: 'nope', p_public: 'X', p_private: 'Y' })).ok, false);
+    assert.equal((await call('fm_push_setkeys', { p_secret: 's3cret', p_public: 'PUB', p_private: 'PRIV' })).ok, true);
+    assert.equal((await call('fm_push_setkeys', { p_secret: 's3cret', p_public: 'X', p_private: 'Y' })).kept, true);
+    assert.equal((await call('fm_push_vapid', {})).key, 'PUB');
+  });
   const a = await call('fm_signup', { p_handle: 'sam', p_display: 'Sam', p_avatar: {}, p_device: '' }), b = await call('fm_signup', { p_handle: 'jay', p_display: 'Jay', p_avatar: {}, p_device: '' });
   await call('fm_add_friend', { p_token: a.token, p_handle: 'jay' }); await call('fm_respond', { p_token: b.token, p_handle: 'sam', p_accept: true });
   await call('fm_update', { p_token: a.token, p_display: null, p_avatar: null, p_stats: { duo: 'jay' } });
@@ -86,7 +93,7 @@ if (PGlite) {
   await t('run(): sends due pushes and drops dead phones', async () => {
     const r = await call('fm_push_save', { p_id: null, p_secret: null, p_token: a.token, p_sub: sub, p_prefs: {}, p_state: { day: '2026-11-23', score: 10, streak: 4 }, p_tz: -300 });
     const ua = crypto.createECDH('prime256v1'); ua.generateKeys(); const v = crypto.createECDH('prime256v1'); v.generateKeys();
-    await db.exec(`update fm_push set sub = '${JSON.stringify({ endpoint: 'https://web.push.apple.com/x', keys: { p256dh: b64u.enc(ua.getPublicKey()), auth: b64u.enc(crypto.randomBytes(16)) } })}'::jsonb; update fm_push_keys set v = '${b64u.enc(v.getPublicKey())}' where k = 'public'; update fm_push_keys set v = '${b64u.enc(v.getPrivateKey())}' where k = 'private';`);
+    await db.exec(`update fm_push set sub = '${JSON.stringify({ endpoint: 'https://web.push.apple.com/x', keys: { p256dh: b64u.enc(ua.getPublicKey()), auth: b64u.enc(crypto.randomBytes(16)) } })}'::jsonb; delete from fm_push_keys where k in ('public', 'private');`); void v;
     const hits = [];
     const f = async (url, init) => {
       if (url.startsWith('https://web.push')) { hits.push(init.headers); return { status: 410 }; }
@@ -95,6 +102,7 @@ if (PGlite) {
     const out = await run('s3cret', { url: 'https://db', key: 'anon' }, f, Date.UTC(2026, 10, 24, 2, 5));
     assert.equal(out.ok, true); assert.ok(hits.length >= 1); assert.match(hits[0].Authorization, /^vapid t=/); assert.equal(out.gone, 1);
     assert.equal((await call('fm_push_batch', { p_secret: 's3cret' })).devices.length, 0, 'gone phone removed');
+    assert.match((await call('fm_push_vapid', {})).key, /^[A-Za-z0-9_-]{87}$/, 'first run made a real key pair');
     void r;
   });
 }

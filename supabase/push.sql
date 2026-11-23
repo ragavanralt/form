@@ -1,7 +1,8 @@
 -- Lifted push notifications (Supabase / Postgres). Runs after form-schema.sql. Safe to run more than once.
 -- Phones register a Web Push subscription with fm_push_save. Every 10 minutes pg_cron calls the "lifted-push" Edge Function,
 -- which reads what is due through fm_push_batch (guarded by a shared secret) and records what it sent with fm_push_mark.
--- The keys (VAPID key pair, cron secret) live in fm_push_keys, which only these functions can read.
+-- The keys live in fm_push_keys, which only these functions can read. Nothing secret is ever pasted in: the cron secret is
+-- made here with gen_random_bytes, and the Edge Function makes the VAPID key pair itself on its first run.
 
 create table if not exists fm_push (
   id uuid primary key default gen_random_uuid(),
@@ -70,4 +71,22 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
+-- Keys: a random cron secret now; the VAPID pair arrives from the Edge Function's first run (fm_push_setkeys).
+insert into fm_push_keys (k, v) values ('cron', encode(extensions.gen_random_bytes(24), 'hex')), ('subject', 'https://ragavanralt.github.io/form') on conflict (k) do nothing;
+
+-- The public half of the signing key, for phones to subscribe with (null until the sender has run once).
+create or replace function fm_push_vapid() returns jsonb language sql security definer set search_path = public, extensions as $$
+  select jsonb_build_object('ok', true, 'key', (select v from fm_push_keys where k = 'public'))
+$$;
+-- Store a freshly made VAPID pair. Needs the cron secret, and never replaces an existing pair.
+create or replace function fm_push_setkeys(p_secret text, p_public text, p_private text) returns jsonb
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  if p_secret is null or p_secret is distinct from (select v from fm_push_keys where k = 'cron') then return jsonb_build_object('ok', false, 'error', 'auth'); end if;
+  if exists (select 1 from fm_push_keys where k = 'public') then return jsonb_build_object('ok', true, 'kept', true); end if;
+  insert into fm_push_keys (k, v) values ('public', p_public), ('private', p_private);
+  return jsonb_build_object('ok', true);
+end $$;
+
+grant execute on function fm_push_vapid(), fm_push_setkeys(text, text, text) to anon;
 grant execute on function fm_push_save(uuid, text, text, jsonb, jsonb, jsonb, int), fm_push_batch(text), fm_push_mark(text, uuid, jsonb, boolean) to anon;

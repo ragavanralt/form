@@ -5,7 +5,6 @@ import { S, on, streak, scoreOf, hist, build } from './store.js';
 import { todayK, liftDone, routineName, planned, addDays } from './core.js';
 import { Social, rpc } from './social.js';
 
-export const VAPID = 'BBhE_ry-vvQwFDPuH1AQ00XANrcWv0zR_-kaYOyKPRZyFzWDFzji89l8I3RvQ8ADOw43IJWamjMdUYPxkjAVLpA';
 const K = 'form2:push';
 const ls = { get: () => { try { return JSON.parse(localStorage.getItem(K) || 'null') || {}; } catch (e) { return {}; } }, set: v => { try { localStorage.setItem(K, JSON.stringify(v)); } catch (e) {} } };
 export const Push = { d: ls.get(), status: '' };
@@ -42,7 +41,11 @@ export async function pushOn() {
   if (perm !== 'granted') throw { code: 'denied' };
   const reg = await navigator.serviceWorker.ready;
   let sub = await reg.pushManager.getSubscription();
-  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(VAPID) });
+  if (!sub) {
+    let key = null; try { key = (await rpc('fm_push_vapid')).key; } catch (e) { throw e && e.code ? e : { code: 'down' }; }
+    if (!key) throw { code: 'warming' };
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(key) });
+  }
   try { await save(sub.toJSON()); } catch (e) { throw e && e.code ? e : { code: 'down' }; }
   lastSig = ''; Push.status = 'on';
 }
@@ -66,4 +69,4 @@ export function pushSync() {
     } catch (e) {}
   }, 20000);
 }
-export const pushErr = e => ({ install: 'On iPhone, add Lifted to your Home Screen first (Share → Add to Home Screen), then open it from there.', unsupported: 'This browser can’t do notifications.', denied: 'Notifications are blocked. Turn them on for Lifted in your phone’s Settings → Notifications.', nosetup: 'The notifications server isn’t set up yet.', down: 'Can’t reach the server right now. Try again in a bit.' })[e && e.code] || 'Couldn’t turn on notifications.';
+export const pushErr = e => ({ install: 'On iPhone, add Lifted to your Home Screen first (Share → Add to Home Screen), then open it from there.', unsupported: 'This browser can’t do notifications.', denied: 'Notifications are blocked. Turn them on for Lifted in your phone’s Settings → Notifications.', nosetup: 'The notifications server isn’t set up yet.', down: 'Can’t reach the server right now. Try again in a bit.', warming: 'Notifications are still starting up on the server. Try again in about 10 minutes.' })[e && e.code] || 'Couldn’t turn on notifications.';
