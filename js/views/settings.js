@@ -37,11 +37,11 @@ A.settings = () => {
   </div></div></div>
   <div class="sec"><div class="lab">Data</div><div class="card tight"><div class="list">
     ${row('exportData', I.upload, 'habit', 'Back up', 'Download everything as a file')}
-    ${row('importData', I.copy, 'habit', 'Restore or import', 'A Lifted backup, or the old Form app')}
+    ${row('importData', I.copy, 'habit', 'Restore or import', 'A Built backup, or the old Form app')}
     ${row('moreData', I.list, 'habit', 'Copy or export', 'Copy a backup, or a spreadsheet of every day')}
     ${row('resetApp', I.trash, 'pro', 'Start over', 'Wipe this phone and run setup again', '')}
   </div></div></div>
-  <p class="faint tiny center mt">Lifted · Your log lives on this phone. Friends see only what you share.<br><a class="link" href="classic/">Open Form Classic</a></p>`, { full: true });
+  <p class="faint tiny center mt">Built · Your log lives on this phone. Friends see only what you share.<br><a class="link" href="classic/">Open Form Classic</a></p>`, { full: true });
 };
 
 /* ---------- profile ---------- */
@@ -109,9 +109,9 @@ A.setRemind = () => {
   const blocked = typeof Notification !== 'undefined' && Notification.permission === 'denied';
   const kinds = [['remind', 'Reminders', 'Morning plan, training days, closing out the day'], ['streak', 'Streak at risk', 'An evening heads-up if today doesn’t count yet'], ['drop', 'Daily Drop', 'Tells you what today’s challenge is'], ['friends', 'Friends', 'Nudges, reactions, your duo partner']];
   const top = onNow ? `<div class="card tight"><div class="li noic"><span><span class="t">Phone notifications</span><span class="s">On for this phone</span></span>${toggle('pushT', true)}</div></div>`
-    : isIOS() && !standalone() ? `<div class="note">On iPhone, notifications only work from the Home Screen app. Tap Share → Add to Home Screen, open Lifted from there, then come back here.</div>`
+    : isIOS() && !standalone() ? `<div class="note">On iPhone, notifications only work from the Home Screen app. Tap Share → Add to Home Screen, open Built from there, then come back here.</div>`
     : !pushCan() ? `<div class="note">This browser can’t show notifications. Calendar reminders below still work.</div>`
-    : `<button class="btn wide" data-act="pushT">${I.bell} Turn on notifications</button>${blocked ? '<p class="faint small center">Blocked in your phone’s settings. Allow them for Lifted there first.</p>' : ''}`;
+    : `<button class="btn wide" data-act="pushT">${I.bell} Turn on notifications</button>${blocked ? '<p class="faint small center">Blocked in your phone’s settings. Allow them for Built there first.</p>' : ''}`;
   openSheet('rem', 'Notifications', `${top}
   <div class="sec"><div class="lab">What to send</div><div class="card tight"><div class="list">${kinds.map(([k, t, s2]) => `<div class="li noic"><span><span class="t">${t}</span><span class="s">${s2}</span></span>${toggle('notifT', N[k] !== false, k)}</div>`).join('')}</div></div></div>
   <div class="sec"><div class="lab">Times</div><div class="card tight"><div class="list">${[['morning', 'Morning'], ['gym', 'Training reminder'], ['evening', 'Evening check']].map(([k, t]) => `<div class="li noic"><span class="t">${t}</span><input type="time" value="${R2[k]}" data-ch="remT" data-k="${k}" style="width:136px;padding:8px"></div>`).join('')}</div></div><p class="faint small">No friend pings between 10:30 pm and 8 am.</p></div>
@@ -137,12 +137,12 @@ CH.remT = el => { S.settings.remind[el.dataset.k] = el.value; save(); pushSync()
 A.remDl = () => {
   const R2 = S.settings.remind, stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z'), t = todayK().replace(/-/g, ''), ev = [];
   const add = (id, hm, title, desc, rule) => { const m = /^(\d{1,2}):(\d{2})$/.exec(hm || ''); if (!m) return; ev.push(['BEGIN:VEVENT', `UID:form2-${id}-${t}@form`, 'DTSTAMP:' + stamp, `DTSTART:${t}T${m[1].padStart(2, '0')}${m[2]}00`, 'DURATION:PT10M', 'RRULE:' + rule, 'SUMMARY:' + title, 'DESCRIPTION:' + desc, 'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + title, 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT'].join('\r\n')); };
-  add('am', R2.morning, 'Lifted: plan your day', 'Open Lifted and check your next best move.', 'FREQ=DAILY');
-  add('pm', R2.evening, 'Lifted: close out the day', 'Log what’s left and see your score.', 'FREQ=DAILY');
+  add('am', R2.morning, 'Built: plan your day', 'Open Built and check your next best move.', 'FREQ=DAILY');
+  add('pm', R2.evening, 'Built: close out the day', 'Log what’s left and see your score.', 'FREQ=DAILY');
   const days = Object.entries(S.plan).filter(([, v]) => v !== 'rest').map(([d]) => ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][d]);
-  if (days.length) add('gym', R2.gym, 'Lifted: training day', 'Your workout is planned for today.', 'FREQ=WEEKLY;BYDAY=' + days.join(','));
+  if (days.length) add('gym', R2.gym, 'Built: training day', 'Your workout is planned for today.', 'FREQ=WEEKLY;BYDAY=' + days.join(','));
   S.settings.remind.on = true; save();
-  download('lifted-reminders.ics', ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Lifted//Reminders//EN', 'X-WR-CALNAME:Lifted', ...ev, 'END:VCALENDAR'].join('\r\n') + '\r\n', 'text/calendar');
+  download('built-reminders.ics', ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Built//Reminders//EN', 'X-WR-CALNAME:Built', ...ev, 'END:VCALENDAR'].join('\r\n') + '\r\n', 'text/calendar');
 };
 
 /* ---------- workout settings ---------- */
@@ -157,29 +157,29 @@ A.trUnit = u => { S.profile.units = u; save(); A.setTraining(); render(); };
 A.trSound = () => { S.settings.sound = !S.settings.sound; save(); A.setTraining(); };
 
 /* ---------- data ---------- */
-A.exportData = () => { download(`lifted-backup-${todayK()}.json`, JSON.stringify({ form2: true, at: new Date().toISOString(), state: S })); toast('Backup downloaded'); };
+A.exportData = () => { download(`built-backup-${todayK()}.json`, JSON.stringify({ form2: true, at: new Date().toISOString(), state: S })); toast('Backup downloaded'); };
 A.moreData = () => openSheet('more', 'Copy or export', `<div class="list"><button class="li noic" data-act="copyBackup"><span><span class="t">Copy backup</span><span class="s">Everything, as text. Paste it into Restore on any phone.</span></span><span class="chev">${I.chev}</span></button><button class="li noic" data-act="exportCSV"><span><span class="t">Spreadsheet (CSV)</span><span class="s">One row per day: score, food, steps, water, cardio, workout, weight</span></span><span class="chev">${I.chev}</span></button><button class="li noic" data-act="exportSets"><span><span class="t">Every set (CSV)</span><span class="s">One row per set, for your own lifting analysis</span></span><span class="chev">${I.chev}</span></button></div>`);
-A.copyBackup = async () => { const t = JSON.stringify({ form2: true, at: new Date().toISOString(), state: S }); try { await navigator.clipboard.writeText(t); toast('Backup copied'); } catch (e) { download(`lifted-backup-${todayK()}.json`, t); toast('Couldn’t copy, so it downloaded instead'); } };
+A.copyBackup = async () => { const t = JSON.stringify({ form2: true, at: new Date().toISOString(), state: S }); try { await navigator.clipboard.writeText(t); toast('Backup copied'); } catch (e) { download(`built-backup-${todayK()}.json`, t); toast('Couldn’t copy, so it downloaded instead'); } };
 const csvQ = v => { const x = String(v ?? ''); return /[",\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
 A.exportCSV = () => {
   const rows = [['date', 'score', 'kcal', 'protein_g', 'carbs_g', 'fat_g', 'meals', 'steps', 'water_ml', 'cardio_min', 'workout', 'sets', 'volume_' + (S.profile.units || 'kg'), 'weight']];
   Object.keys(S.days).sort().forEach(k => { const d = S.days[k], t = totals(d), w = d.wo && d.wo.status === 'done' ? d.wo : null; const sets = w ? w.ex.reduce((a, e) => a + e.sets.filter(s => s.done && s.k !== 'W').length, 0) : 0; const vol = w ? w.ex.reduce((a, e) => a + e.sets.filter(s => s.done && s.k !== 'W').reduce((b, s) => b + num(s.w) * num(s.r), 0), 0) : 0;
     rows.push([k, score(S, k).total, Math.round(t.cal), Math.round(t.p), Math.round(t.c), Math.round(t.f), (d.meals || []).length, d.steps || 0, d.water || 0, (d.cardio || []).reduce((a, c) => a + (+c.min || 0), 0), w ? w.name : '', sets, Math.round(vol), d.weight || '']); });
-  download(`lifted-days-${todayK()}.csv`, rows.map(r => r.map(csvQ).join(',')).join('\n'), 'text/csv'); toast('Spreadsheet downloaded');
+  download(`built-days-${todayK()}.csv`, rows.map(r => r.map(csvQ).join(',')).join('\n'), 'text/csv'); toast('Spreadsheet downloaded');
 };
 A.exportSets = () => {
   const rows = [['date', 'workout', 'exercise', 'set', 'type', 'weight_' + (S.profile.units || 'kg'), 'reps', 'pr']];
   Object.keys(S.days).sort().forEach(k => { const w = S.days[k].wo; if (!w || w.status !== 'done') return; w.ex.forEach(e => e.sets.filter(s => s.done).forEach((s, i) => rows.push([k, w.name, e.name, i + 1, { N: 'working', W: 'warm-up', D: 'drop', F: 'failure' }[s.k] || 'working', s.w, s.r, s.pr || '']))); });
-  download(`lifted-sets-${todayK()}.csv`, rows.map(r => r.map(csvQ).join(',')).join('\n'), 'text/csv'); toast('Sets downloaded');
+  download(`built-sets-${todayK()}.csv`, rows.map(r => r.map(csvQ).join(',')).join('\n'), 'text/csv'); toast('Sets downloaded');
 };
-A.importData = () => openSheet('imp', 'Restore or import', `<div class="col">${hasV1() ? `<button class="rt" data-act="impV1"><span><b>Bring in data from Form Classic</b><span class="faint small" style="display:block">Found on this phone. Days, workouts, routines and foods.</span></span><span class="chev">${I.chev}</span></button>` : ''}<button class="rt" data-act="impFile"><span><b>Choose a backup file</b><span class="faint small" style="display:block">A Lifted, Form or Form Classic backup (.json)</span></span><span class="chev">${I.chev}</span></button>
+A.importData = () => openSheet('imp', 'Restore or import', `<div class="col">${hasV1() ? `<button class="rt" data-act="impV1"><span><b>Bring in data from Form Classic</b><span class="faint small" style="display:block">Found on this phone. Days, workouts, routines and foods.</span></span><span class="chev">${I.chev}</span></button>` : ''}<button class="rt" data-act="impFile"><span><b>Choose a backup file</b><span class="faint small" style="display:block">A Built, Form or Form Classic backup (.json)</span></span><span class="chev">${I.chev}</span></button>
   <div class="lab faint small b mt2">OR PASTE IT</div><textarea id="imptxt" placeholder="Paste a backup you copied" style="min-height:110px"></textarea><button class="btn wide" data-act="impPaste">Restore</button></div>`);
 function mergeDays(n) { let c = 0; Object.entries(n.days).forEach(([k, d]) => { const cur = S.days[k]; if (!cur || (!cur.meals.length && !cur.wo)) { S.days[k] = d; c++; } }); n.routines.forEach(r => { if (!S.routines.some(x => x.name === r.name)) S.routines.push(r); }); if (n.profile.start < S.profile.start) S.profile.start = n.profile.start; S.foods.fav = [...S.foods.fav, ...n.foods.fav].slice(0, 80); return c; }
 const fx = n2 => { const x = findEx(n2); return x ? { m: x.p[0] } : null; };
 A.impV1 = () => { const o = readV1(); if (!o) return; const n = migrateV1(o, fx); const c = mergeDays(n); touch(); closeSheet(); render(); toast(`Imported ${c} days from Form Classic`); };
 A.impFile = async () => { const [f] = await pickFiles(''); if (!f) return; let t = ''; try { t = await f.text(); } catch (e) {} restoreText(t); };
 A.impPaste = () => restoreText(($('#imptxt') || {}).value);
-// One restore path for Settings and onboarding. Lifted backups replace everything; older apps merge in.
+// One restore path for Settings and onboarding. Built backups replace everything; older apps merge in.
 function restoreText(t) {
   const r = readBackup(t, fx);
   if (!r) { toast('Couldn’t read that. Pick the backup .json file, or paste its text.'); return; }

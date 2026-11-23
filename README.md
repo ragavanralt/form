@@ -1,4 +1,4 @@
-# Lifted
+# Built
 
 Food, training and habits in one daily score. Every day is scored out of 100 from the things you choose to track. 70 is a win, 45 keeps your streak alive. Win days to climb levels, and race your friends in a weekly league.
 
@@ -38,7 +38,7 @@ Phone notifications need three steps in the same Supabase project, after the fri
 2. **Edge Functions → Deploy a new function → Via editor**: name it `lifted-push`, paste all of `supabase/functions/lifted-push/index.ts`, deploy, and turn off **Enforce JWT verification** in its settings (the cron secret is the check).
 3. **SQL Editor**: run all of `supabase/push-cron.sql`, which calls the function every 10 minutes.
 
-Then on the phone: open Lifted from the Home Screen, Settings → Notifications → Turn on notifications. On iPhone this needs iOS 16.4 or later, and only works from the Home Screen app.
+Then on the phone: open Built from the Home Screen, Settings → Notifications → Turn on notifications. On iPhone this needs iOS 16.4 or later, and only works from the Home Screen app.
 
 ## Coming from the old Form
 

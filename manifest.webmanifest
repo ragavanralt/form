@@ -1,7 +1,7 @@
 {
-  "name": "Lifted",
-  "short_name": "Lifted",
-  "description": "Food, training and habits in one daily score.",
+  "name": "Built",
+  "short_name": "Built",
+  "description": "Train, eat, show up, and watch every muscle level up.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

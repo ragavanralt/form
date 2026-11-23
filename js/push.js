@@ -1,6 +1,6 @@
 // Phone notifications (Web Push). The phone subscribes once; after that it keeps the server up to date with a small
 // summary of the day (score, streak, plan, today's drop) so the server can send the right reminder at the right time.
-// On iPhone this works only when Lifted is opened from the Home Screen (iOS 16.4+).
+// On iPhone this works only when Built is opened from the Home Screen (iOS 16.4+).
 import { S, on, streak, scoreOf, hist, build } from './store.js';
 import { todayK, liftDone, routineName, planned, addDays } from './core.js';
 import { Social, rpc } from './social.js';
@@ -69,4 +69,4 @@ export function pushSync() {
     } catch (e) {}
   }, 20000);
 }
-export const pushErr = e => ({ install: 'On iPhone, add Lifted to your Home Screen first (Share → Add to Home Screen), then open it from there.', unsupported: 'This browser can’t do notifications.', denied: 'Notifications are blocked. Turn them on for Lifted in your phone’s Settings → Notifications.', nosetup: 'The notifications server isn’t set up yet.', down: 'Can’t reach the server right now. Try again in a bit.', warming: 'Notifications are still starting up on the server. Try again in about 10 minutes.' })[e && e.code] || 'Couldn’t turn on notifications.';
+export const pushErr = e => ({ install: 'On iPhone, add Built to your Home Screen first (Share → Add to Home Screen), then open it from there.', unsupported: 'This browser can’t do notifications.', denied: 'Notifications are blocked. Turn them on for Built in your phone’s Settings → Notifications.', nosetup: 'The notifications server isn’t set up yet.', down: 'Can’t reach the server right now. Try again in a bit.', warming: 'Notifications are still starting up on the server. Try again in about 10 minutes.' })[e && e.code] || 'Couldn’t turn on notifications.';

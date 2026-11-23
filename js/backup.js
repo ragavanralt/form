@@ -65,7 +65,7 @@ function oldText(t) {
   return out;
 }
 
-// Returns { kind: 'full', state } for a Lifted backup (replaces everything),
+// Returns { kind: 'full', state } for a Built backup (replaces everything),
 // { kind: 'old', state, label } for older apps (merged in), or null if it isn't a backup.
 export function readBackup(text, findEx) {
   const raw = String(text || '');

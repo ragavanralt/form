@@ -72,7 +72,7 @@ export async function card(st) {
   const glow = (cx, cy, r, col) => { const rg = x.createRadialGradient(cx, cy, 0, cx, cy, r); rg.addColorStop(0, col + '66'); rg.addColorStop(1, col + '00'); x.fillStyle = rg; x.fillRect(0, 0, 1080, 1920); };
   glow(880, 260, 760, acc.length === 7 ? acc : '#8b6cff'); glow(120, 1700, 700, tc);
   const F = (w, s) => `${w} ${s}px Sora, -apple-system, sans-serif`;
-  x.fillStyle = 'rgba(255,255,255,.55)'; x.font = F(600, 34); x.fillText('LIFTED  ·  SEASON ' + st.n + (st.done ? ' WRAPPED' : ' SO FAR'), 90, 170);
+  x.fillStyle = 'rgba(255,255,255,.55)'; x.font = F(600, 34); x.fillText('BUILT  ·  SEASON ' + st.n + (st.done ? ' WRAPPED' : ' SO FAR'), 90, 170);
   x.fillStyle = '#fff'; x.font = F(800, 92); x.fillText(S.profile.name || 'My season', 90, 290);
   x.fillStyle = 'rgba(255,255,255,.6)'; x.font = F(500, 38); x.fillText(range(st), 90, 350);
   x.fillStyle = tc; x.font = F(800, 190); x.fillText(st.tier[0], 82, 600);
@@ -85,14 +85,14 @@ export async function card(st) {
     x.fillStyle = '#fff'; x.font = F(800, 92); x.fillText(v, cx + 38, cy + 170);
   });
   if (st.lift) { x.fillStyle = 'rgba(255,255,255,.55)'; x.font = F(600, 32); x.fillText('BIGGEST JUMP', 90, 1640); x.fillStyle = '#fff'; x.font = F(700, 52); x.fillText(`${st.lift.name}  +${Math.round(st.lift.pct * 100)}%`, 90, 1712); }
-  x.fillStyle = 'rgba(255,255,255,.4)'; x.font = F(600, 30); x.fillText('Made with Lifted', 90, 1830);
+  x.fillStyle = 'rgba(255,255,255,.4)'; x.font = F(600, 30); x.fillText('Made with Built', 90, 1830);
   return new Promise(r => c.toBlob(r, 'image/png'));
 }
 function roundRect(x, a, b, w, h, r) { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); }
 A.wrapShare = async () => {
   if (!W) return;
   const st = W.st, blob = await card(st); if (!blob) { toast('Couldn’t make the image'); return; }
-  const file = new File([blob], `lifted-season-${st.n}.png`, { type: 'image/png' });
+  const file = new File([blob], `built-season-${st.n}.png`, { type: 'image/png' });
   try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: `Season ${st.n} Wrapped` }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = file.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 3000); toast('Image saved');
 };
