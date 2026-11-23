@@ -6,7 +6,7 @@ import { initAI } from './ai.js';
 import { Social, ping } from './social.js';
 import { vToday } from './views/today.js';
 import './views/log.js';
-import { vTrain, paintDock, activeKey, onWorkout, resumeWorkout } from './views/train.js';
+import { vTrain, paintDock, activeKey, liveCardio, onWorkout, resumeWorkout } from './views/train.js';
 import { vProgress, recapDue, openRecap } from './views/progress.js';
 import { vFriends, refresh, awaySheet, handleAddParam } from './views/friends.js';
 import { applyTheme } from './views/settings.js';
@@ -72,7 +72,7 @@ async function boot() {
   if (!S.onboarded) startOnboarding();
   // Mid-workout and the app was closed or reloaded (iOS does this to home-screen apps in the
   // background): open straight back onto the workout, unless you'd left it yourself.
-  const resume = S.onboarded && activeKey() && onWorkout();
+  const resume = S.onboarded && (activeKey() || liveCardio()) && onWorkout();
   if (resume) show('train');
   render();
   if (resume) resumeWorkout();

@@ -2,7 +2,7 @@
 import { S, R, day, get, touch, render, hist, scoreOf, on } from '../store.js';
 import { todayK, addDays, wkStart, pdk, esc, fmt, uid, num, nint, DOW, DOWL, planned, routineName, liftDone, prCheck, overload, e1rm, tierOf } from '../core.js';
 import { A, CH, I, $, openSheet, setSheet, closeSheet, toast, haptic, beep, confetti, pickFiles, Sheet } from '../ui.js';
-import { EXERCISES, MUSCLES, GROUPS, EQUIP, PROGRAMS, findEx, allEx, groupOf } from '../exercises.js';
+import { EXERCISES, MUSCLES, GROUPS, EQUIP, PROGRAMS, CARDIO, CARDIO_MET, findEx, allEx, groupOf } from '../exercises.js';
 import { bodyMap, heatMap } from '../body.js';
 import { exDrawing } from '../draw.js';
 import { levelUps } from '../build.js';
@@ -154,7 +154,7 @@ const tw = () => touch(curK());
 // close (X, tapping outside, Escape, or switching tabs) clears it; see app.js.
 const UI_KEY = 'form2:ui';
 export function onWorkout(v) { try { if (v === undefined) return localStorage.getItem(UI_KEY) !== 'off'; localStorage.setItem(UI_KEY, v ? 'on' : 'off'); } catch (e) {} return true; }
-export function resumeWorkout() { if (!activeWo() || !onWorkout()) return false; EDK = null; openSession(); return true; }
+export function resumeWorkout() { if (!onWorkout()) return false; if (CL) { openCardio(); return true; } if (!activeWo()) return false; EDK = null; openSession(); return true; }
 function openSession() {
   const w = curWo(); if (!w) return;
   if (!EDK) onWorkout(true);
@@ -208,6 +208,7 @@ A.setDone = a => {
     s.done = true; s.pr = s.k === 'W' || EDK ? '' : prCheck(hist(), e.name, num(s.w), num(s.r), curK());
     if (s.pr) { haptic([20, 40, 20]); confetti(60); toast(s.pr + '! ' + e.name); }
     else haptic(12);
+    if (!EDK && !w.cAsk && cardioWanted() && w.ex.every(x => x.sets.every(y => y.done))) { w.cAsk = 1; endRest(); tw(); cardioAsk(); return; }
     if (!EDK && S.settings.autoRest !== false) startRest(restFor(e));
   } else { s.done = false; s.pr = ''; }
   tw(); openSession();
@@ -264,9 +265,11 @@ A.logPastGo = rid => {
   touch(k); EDK = k; openSession();
 };
 A.histAll = () => { const ss = hist().sessions.slice().reverse(); openSheet('hall', 'All workouts', `<div class="list">${ss.map(s2 => `<button class="li noic" data-act="sessionDetail" data-arg="${s2.date}"><span><span class="t">${esc(s2.name)}</span><span class="s">${pdk(s2.date).toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} · ${s2.sets} sets</span></span><span class="chev">${I.chev}</span></button>`).join('')}</div><button class="btn ghost wide mt" data-act="logPast">${I.plus} Log a past workout</button>`, { full: true }); };
-A.woFinish = () => {
-  const w = curWo(); if (!w) return; const k = curK();
-  if (!w.ex.some(e => e.sets.some(s => s.done || num(s.r)))) { toast('Complete at least one set first'); openSession(); return; }
+A.woFinish = () => { const k = finishLift(); if (!k) return; summary(k, true); postWorkout(k); };
+// Saves the live workout as done. Returns its day, or '' if there was nothing to save.
+function finishLift() {
+  const w = curWo(); if (!w) return ''; const k = curK();
+  if (!w.ex.some(e => e.sets.some(s => s.done || num(s.r)))) { toast('Complete at least one set first'); openSession(); return ''; }
   // the lineup goes back into the routine as planned, including exercises skipped today
   const lineup = w.ex.map(e => ({ name: e.name, sets: e.sets.filter(s => s.k !== 'W').length || e.sets.length, reps: e.reps, note: e.note, rest: e.rest || 0 }));
   w.ex.forEach(e => { e.sets = e.sets.filter(s => s.done || num(s.r)); });
@@ -277,9 +280,8 @@ A.woFinish = () => {
   const r = S.routines.find(x => x.id === w.rid);
   if (r) r.ex = lineup;
   tw(); endRest(); closeSheet(); render();
-  summary(k, true);
-  postWorkout(k);
-};
+  return k;
+}
 A.sessionDetail = k => summary(k, false);
 function summary(k, fresh) {
   const w = get(k).wo; if (!w) return;
@@ -292,7 +294,7 @@ function summary(k, fresh) {
   ${summaryExtras(k, w, vol)}<div class="sumgrid mt"><div class="stat"><small>Time</small><b class="n">${w.end && w.start ? Math.round((w.end - w.start) / 60000) : '–'}<span class="faint small"> min</span></b></div><div class="stat"><small>Volume</small><b class="n">${fmt(vol)}</b></div><div class="stat"><small>Sets</small><b class="n">${sets}</b></div></div>
   ${prs.length ? `<div class="card mt"><div class="chd"><h3>${I.trophy} ${prs.length} personal record${prs.length > 1 ? 's' : ''}</h3></div><div class="list">${prs.map(p => `<div class="li noic"><span><span class="t">${esc(p.n)}</span><span class="s">${esc(p.s.pr)}</span></span><span class="r b">${p.s.w} × ${p.s.r}</span></div>`).join('')}</div></div>` : ''}
   <div class="list mt">${w.ex.map(e => `<div class="li noic"><span><span class="t">${esc(e.name)}</span><span class="s">${e.sets.filter(s => s.done).map(s => (s.k === 'W' ? 'W ' : '') + s.w + '×' + s.r).join(', ')}</span></span><span></span></div>`).join('')}</div>
-  ${fresh ? `<p class="faint small center mt">${scoreOf(k).total} day score · training points locked in</p>` : ''}
+  ${sumCardio(k, fresh)}${fresh ? `<p class="faint small center mt">${scoreOf(k).total} day score · training points locked in</p>` : ''}
   <div class="row mt" style="gap:8px"><button class="btn ghost grow" data-act="woEdit" data-arg="${k}">Edit workout</button><button class="btn grow" data-act="closeSheet">Done</button></div>`, { full: true });
 }
 
@@ -304,6 +306,7 @@ function tick() { const left = Math.ceil((REST.end - Date.now()) / 1000); if (le
 export function paintDock() {
   const dk = $('#dock'), w = activeWo(), sheetOpen = !$('#sheetwrap').hidden;
   if (REST.end > Date.now()) { const left = Math.ceil((REST.end - Date.now()) / 1000); dk.hidden = false; dk.style.bottom = sheetOpen ? 'calc(14px + env(safe-area-inset-bottom,0px))' : ''; dk.style.zIndex = sheetOpen ? 66 : 29; dk.innerHTML = `<div class="dock"><span class="iconbtn" style="color:var(--train)">${I.timer}</span><span><span class="t" id="restT">${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</span><small class="faint" style="display:block;font-size:12px">Rest</small></span><span class="row" style="gap:6px"><button class="btn xs ghost" data-act="restAdd" data-arg="-15">−15</button><button class="btn xs ghost" data-act="restAdd" data-arg="15">+15</button><button class="btn xs" data-act="restSkip">Skip</button></span></div>`; return; }
+  if (CL && !sheetOpen) { dk.hidden = false; dk.style.bottom = ''; dk.style.zIndex = 29; dk.innerHTML = `<button class="dock" data-act="cardioOpen" style="width:100%;text-align:left"><span class="iconbtn" style="color:var(--move)">${I.run}</span><span><b>${esc(CL.type)}</b><small class="faint" style="display:block;font-size:12px"><span id="ctD">${clock(cardioMs())}</span> · ${CL.run ? 'tap to open' : 'paused'}</small></span><span class="chev">${I.chev}</span></button>`; return; }
   if (w && !sheetOpen) { dk.hidden = false; dk.style.bottom = ''; dk.style.zIndex = 29; dk.innerHTML = `<button class="dock" data-act="openSession" style="width:100%;text-align:left"><span class="iconbtn" style="color:var(--train)">${I.dumb}</span><span><b>${esc(w.name)}</b><small class="faint" style="display:block;font-size:12px">${elapsed(w.start)} · tap to continue</small></span><span class="chev">${I.chev}</span></button>`; return; }
   dk.hidden = true; dk.innerHTML = '';
 }
@@ -367,6 +370,7 @@ function ghostBar(w) {
 }
 // Every second while the live workout is open: move the ghost and the workout clock.
 function liveTick() {
+  if (CL) { const t = clock(cardioMs()); ['#ctT', '#ctD'].forEach(q => { const el = $(q); if (el) el.textContent = t; }); const kc = $('#ctK'); if (kc) kc.textContent = cardioKcal(cardioMs()); }
   if (Sheet.kind !== 'session' || EDK || $('#sheetwrap').hidden) return;
   const w = activeWo(); if (!w) return;
   const el = $('#welap'); if (el) el.textContent = elapsed(w.start);
@@ -389,3 +393,73 @@ function summaryExtras(k, w, v) {
   return out;
 }
 export { exInfo, thumb };
+
+/* ---------- live cardio: a timer you start and stop, so the minutes are what you actually did ---------- */
+// Kept in its own key so it survives the phone killing the app. Time comes from timestamps, not a counter.
+const CKEY = 'form2:cardio';
+let CL = (() => { try { return JSON.parse(localStorage.getItem(CKEY) || 'null'); } catch (e) { return null; } })();
+function setCL(v) { CL = v; try { if (v) localStorage.setItem(CKEY, JSON.stringify(v)); else localStorage.removeItem(CKEY); } catch (e) {} }
+export const liveCardio = () => !!CL;
+const cardioMs = () => (CL ? CL.acc + (CL.run ? Date.now() - CL.run : 0) : 0);
+const clock = ms => { const t = Math.floor(ms / 1000), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), x = String(t % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}`; };
+const kcalFor = (type, min) => Math.round(((CARDIO_MET[type] || 5) * 3.5 * (+S.profile.weightKg || 75)) / 200 * min);
+const cardioKcal = ms => '~' + kcalFor(CL ? CL.type : '', ms / 60000) + ' kcal';
+// Offered after the last set if you're cutting or you track cardio.
+const cardioWanted = () => !!(S.modules.cardio || S.profile.goal === 'cut' || (S.profile.goals || []).includes('cut'));
+// Your usual: the type you've logged most often (ties go to the most recent).
+function usualCardio() {
+  const n = {}, last = {};
+  Object.keys(S.days).sort().forEach((k, i) => (S.days[k].cardio || []).forEach(c => { n[c.type] = (n[c.type] || 0) + 1; last[c.type] = i; }));
+  const best = Object.keys(n).filter(t => CARDIO.includes(t)).sort((a, b) => n[b] - n[a] || last[b] - last[a])[0];
+  return best || 'Incline walk';
+}
+function cardioAsk() {
+  const u = usualCardio(), goal = +S.targets.cardio || 0, did = (get(todayK()).cardio || []).reduce((a, c) => a + (+c.min || 0), 0), left = Math.max(0, goal - did);
+  openSheet('cask', 'All sets done', `<p class="muted" style="margin-top:-6px">${S.profile.goal === 'cut' ? 'Cutting? ' : ''}Finish with cardio${left && S.modules.cardio ? `: <b style="color:var(--ink)">${left} min</b> left on today’s goal` : ''}. Your workout gets saved and a live timer starts.</p>
+  <button class="btn wide mt2" data-act="cardioGo" data-arg="${esc(u)}|fin">${I.play} Start ${esc(u.toLowerCase())}</button>
+  <div class="lab faint small b mt2">OR SOMETHING ELSE</div><div class="row wrap mt" style="gap:6px">${CARDIO.filter(t => t !== u).map(t => `<button class="chip" data-act="cardioGo" data-arg="${esc(t)}|fin">${esc(t)}</button>`).join('')}</div>
+  <div class="row mt2" style="gap:8px"><button class="btn ghost grow" data-act="openSessionKeep">Back to workout</button><button class="btn ghost grow" data-act="woFinish">Finish, no cardio</button></div>`);
+}
+A.cardioAsk = () => cardioAsk();
+// "type|fin": fin means save the live lift first; its summary shows once the cardio is done.
+A.cardioGo = a => {
+  const [type, fin] = String(a || '').split('|');
+  if (CL) { openCardio(); return; }
+  let wk = '';
+  if (fin && activeWo()) { EDK = null; wk = finishLift(); if (!wk) return; postWorkout(wk); }
+  setCL({ type: CARDIO.includes(type) ? type : 'Other', day: todayK(), start: Date.now(), acc: 0, run: Date.now(), wk });
+  haptic(15); openCardio(); render();
+};
+A.cardioOpen = () => openCardio();
+let wakeL = null;
+function openCardio() {
+  if (!CL) return;
+  onWorkout(true);
+  const ms = cardioMs(), goal = +S.targets.cardio || 0;
+  openSheet('cardioLive', esc(CL.type), `<div class="center" style="padding:18px 0 8px"><div class="faint small b">${CL.run ? 'LIVE' : 'PAUSED'}</div><div class="n" id="ctT" style="font-size:72px;font-weight:800;letter-spacing:-2px;line-height:1.1;color:${CL.run ? 'var(--ink)' : 'var(--ink3)'}">${clock(ms)}</div><div class="muted" id="ctK">${cardioKcal(ms)}</div>${goal && S.modules.cardio ? `<div class="faint small mt">Goal ${goal} min</div>` : ''}</div>
+  <div class="note small mt" style="text-align:center">Only the time on this clock gets logged. Lock your phone if you like, it keeps counting.</div>
+  <div class="row mt2" style="gap:8px"><button class="btn ghost grow" data-act="cardioPause">${CL.run ? 'Pause' : 'Resume'}</button><button class="btn grow" data-act="cardioStop">${I.check} Finish</button></div>
+  <button class="btn line wide mt" data-act="cardioDiscard">Discard</button>`, { full: true, onClose: () => { releaseWake(); paintDock(); } });
+  paintDock();
+  try { if (navigator.wakeLock && !wakeL) navigator.wakeLock.request('screen').then(l => { wakeL = l; }).catch(() => {}); } catch (e) {}
+}
+function releaseWake() { try { if (wakeL) wakeL.release(); } catch (e) {} wakeL = null; }
+A.cardioPause = () => { if (!CL) return; if (CL.run) setCL({ ...CL, acc: CL.acc + Date.now() - CL.run, run: 0 }); else setCL({ ...CL, run: Date.now() }); haptic(10); openCardio(); };
+A.cardioDiscard = () => { if (!CL || !confirm('Discard this cardio? Nothing gets logged.')) return; const wk = CL.wk; setCL(null); closeSheet(); render(); if (wk) summary(wk, true); };
+A.cardioStop = () => {
+  if (!CL) return;
+  const c = CL, ms = cardioMs(), min = Math.round(ms / 60000);
+  setCL(null); closeSheet();
+  if (min >= 1) {
+    day(c.day).cardio.push({ id: uid(), type: c.type, min, kcal: kcalFor(c.type, min), live: true, start: c.start, end: Date.now() });
+    touch(c.day); haptic([20, 40, 20]);
+  }
+  render();
+  if (c.wk) summary(c.wk, true);
+  toast(min >= 1 ? `${min} min ${c.type.toLowerCase()} logged` : 'Under a minute, nothing logged');
+};
+function sumCardio(k, fresh) {
+  const cs = (get(k).cardio || []).filter(c => c.live);
+  if (cs.length) return `<div class="list mt">${cs.map(c => `<div class="li"><span class="ic c-move">${I.run}</span><span><span class="t">${esc(c.type)}</span><span class="s">${c.min} min · ~${c.kcal} kcal · timed</span></span></div>`).join('')}</div>`;
+  return fresh && k === todayK() && cardioWanted() && !CL ? `<button class="btn ghost wide mt" data-act="cardioGo" data-arg="${esc(usualCardio())}">${I.run} Start ${esc(usualCardio().toLowerCase())} now</button>` : '';
+}
