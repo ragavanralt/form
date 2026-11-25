@@ -15,8 +15,9 @@ import { checkRewards } from './views/daily.js';
 import { wrappedDue } from './season.js';
 import { openWrapped } from './views/wrapped.js';
 import { pushSync, prepPush } from './push.js';
+import { calSync } from './calsync.js';
 FX.on = () => on('celebrate');
-afterSave.push(pushSync);
+afterSave.push(pushSync, () => calSync());
 
 R.views = { today: vToday, train: vTrain, progress: vProgress, friends: vFriends };
 const TABS = [['today', 'Today', I.home], ['train', 'Train', I.dumb], null, ['friends', 'Friends', I.users], ['progress', 'Progress', I.chart]];
@@ -82,7 +83,7 @@ async function boot() {
   const popup = () => { if (!S.onboarded || !$('#sheetwrap').hidden) return; const sn = on('seasons') ? wrappedDue(S) : 0; if (sn) { openWrapped(sn, true); return; } const ws = on('recap') ? recapDue() : null; if (ws) { openRecap(ws); return; } if (on('friends')) awaySheet(); };
   if (Social.on) { await refresh(); handleAddParam(); setTimeout(popup, 600); }
   else { ping().then(() => { if (R.cur === 'friends') vFriends(); }); handleAddParam(); setTimeout(popup, 600); }
-  pushSync(); prepPush();
+  pushSync(); prepPush(); calSync(2000);
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 boot();

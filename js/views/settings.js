@@ -3,6 +3,7 @@ import { S, save, touch, render, replaceState, hasV1, readV1, KEY } from '../sto
 import { MODULES, ACTIVITY, suggestTargets, weights, PART, esc, fmt, nint, num, todayK, migrateV1, normalize, freshState, addDays, pdk, totals, score, FEATURES } from '../core.js';
 import { Push, pushOn, pushOff, pushOnNow, pushErr, pushCan, standalone, isIOS, pushSync, prepPush, pushTest } from '../push.js';
 import { SERVER } from '../social.js';
+import { calOn, calEnable, calDisable, calFeed } from '../calsync.js';
 import { A, CH, I, $, openSheet, setSheet, closeSheet, toast, toggle, download, pickFiles, avatar, avPicker } from '../ui.js';
 import { aiLabel, gemKey, setGemKey, testKey, errMsg } from '../ai.js';
 import { Social, socialErr } from '../social.js';
@@ -32,6 +33,7 @@ A.settings = () => {
   <div class="sec"><div class="lab">Smart features</div><div class="card tight"><div class="list">
     ${row('setAI', I.spark, 'accent', 'AI', aiLabel())}
     ${row('setFriends', I.users, 'move', 'Friends and privacy', Social.on ? 'Signed in as @' + esc(me.handle) : 'Not signed in')}
+    ${row('setCal', I.calendar, 'move', 'Calendar', calOn() ? 'Your log is in your calendar' : 'See workouts and food in your calendar')}
     ${row('setRemind', I.bell, 'water', 'Notifications', pushOnNow() ? 'On' : S.settings.remind.on ? 'Calendar reminders' : 'Off')}
     ${row('setTraining', I.dumb, 'train', 'Workout settings', S.settings.rest + ' s rest · ' + P.units)}
     ${S.settings.features.loot !== false ? row('rewards', I.star, 'body', 'Rewards', (S.loot.items.length ? S.loot.items.length + ' earned' : 'Titles, frames, streak freezes') + (S.loot.crates.some(c => !c.open) ? ' · new' : '')) : ''}
@@ -117,7 +119,8 @@ A.setRemind = () => {
   openSheet('rem', 'Notifications', `${top}
   <div class="sec"><div class="lab">What to send</div><div class="card tight"><div class="list">${kinds.map(([k, t, s2]) => `<div class="li noic"><span><span class="t">${t}</span><span class="s">${s2}</span></span>${toggle('notifT', N[k] !== false, k)}</div>`).join('')}</div></div></div>
   <div class="sec"><div class="lab">Times</div><div class="card tight"><div class="list">${[['morning', 'Morning'], ['gym', 'Training reminder'], ['evening', 'Evening check']].map(([k, t]) => `<div class="li noic"><span class="t">${t}</span><input type="time" value="${R2[k]}" data-ch="remT" data-k="${k}" style="width:136px;padding:8px"></div>`).join('')}</div></div><p class="faint small">No friend pings between 10:30 pm and 8 am.</p></div>
-  <div class="sec"><div class="lab">Calendar reminders</div><a class="btn line wide" href="${calUrl()}" target="_blank" rel="noopener" data-act="remCal">${I.calendar} Add to Calendar</a><p class="faint small">Opens your reminders and training days as calendar events with alerts. Tap <b>Add All</b>. Changed your times or plan? Delete the old Built events in Calendar and add again.</p></div>`, { full: true });
+  ${onNow ? '' : `<div class="sec"><div class="lab">Can’t use notifications?</div><a class="btn line wide" href="${calUrl()}" target="_blank" rel="noopener" data-act="remCal">${I.calendar} Add reminders to Calendar</a><p class="faint small">Reminders as calendar alerts instead. Tap <b>Add All</b>.</p></div>`}
+  <p class="faint small mt">Want your workouts and food in your calendar? That’s Settings → Calendar.</p>`, { full: true });
 };
 A.pushT = async (a, btn) => {
   if (pushOnNow()) { await pushOff(); toast('Notifications off'); A.setRemind(); return; }
@@ -127,6 +130,25 @@ A.pushT = async (a, btn) => {
 };
 A.pushTestGo = async () => { try { await pushTest(); toast('Test sent. Check your notifications'); } catch (e) { toast(pushErr(e)); } };
 A.notifT = k => { const N = S.settings.notif = S.settings.notif || {}; N[k] = N[k] === false; save(); pushSync(); A.setRemind(); };
+
+/* ---------- calendar: your log as a subscribed calendar ---------- */
+A.setCal = () => {
+  const on = calOn();
+  openSheet('cal', 'Calendar', `<p class="muted small" style="margin-top:-6px">Your log in Apple or Google Calendar, kept up to date as you log:</p>
+  <div class="card tight"><div class="list">
+    <div class="li noic"><span><span class="t">🏋️ Every workout</span><span class="s">At the time you did it, with time, volume, PRs and your sets</span></span></div>
+    <div class="li noic"><span><span class="t">Every day</span><span class="s">Your score, calories and protein, what you ate, steps and cardio</span></span></div>
+    <div class="li noic"><span><span class="t">Planned workouts</span><span class="s">The next two weeks of your plan</span></span></div></div></div>
+  ${on ? `<a class="btn wide mt2" href="${calFeed()}" data-act="calSub">${I.calendar} Subscribe in Calendar</a>
+    <p class="faint small">Tap it once and choose <b>Subscribe</b>. Calendar checks for new entries about every hour. Already subscribed? You’re set.</p>
+    <div class="row mt" style="gap:8px"><button class="btn ghost grow" data-act="calCopy">${I.copy} Copy link</button><button class="btn line grow" data-act="calOff">Turn off</button></div>
+    <p class="faint tiny mt">For Google Calendar: copy the link, then on a computer go to Other calendars → From URL. Anyone with the link can see this calendar, so keep it to yourself.</p>`
+  : `<button class="btn wide mt2" data-act="calGo">${I.calendar} Turn on</button><p class="faint small">Your daily totals, meal names and workouts are saved on your Built server so your calendar app can read them. Photos and body measurements aren’t.</p>`}`);
+};
+A.calGo = async (a, btn) => { if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Setting up…'; } try { await calEnable(); toast('Calendar ready. Now tap Subscribe'); } catch (e) { toast(e && e.code === 'nosetup' ? 'The calendar isn’t set up on the server yet.' : 'Couldn’t reach the server. Try again.'); } A.setCal(); };
+A.calSub = () => {};
+A.calCopy = async () => { try { await navigator.clipboard.writeText(calFeed('https')); toast('Link copied'); } catch (e) { toast('Copy failed'); } };
+A.calOff = async () => { if (!confirm('Turn off the calendar? Built stops updating it, and the link stops working. Remove the Built calendar from your calendar app too.')) return; await calDisable(); toast('Calendar off'); A.setCal(); };
 
 /* ---------- features ---------- */
 A.setFeatures = () => {

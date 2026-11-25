@@ -100,4 +100,15 @@ t('drop: never water if you never log water, and one swap a day', async () => {
   const first = dropFor(S, todayK()).id, sw = swapDrop(S);
   assert.ok(sw && sw.id !== first); assert.equal(swapDrop(S), null, 'only one swap');
 });
+t('calendar: workouts at their time, days with food, planned workouts ahead', async () => {
+  const { calEvents } = await import('../js/cal.js');
+  const S = seedState(20, T), ev = calEvents(S, T);
+  const wo = ev.filter(e => e.u.startsWith('wo-')), days = ev.filter(e => e.u.startsWith('day-')), plan = ev.filter(e => e.u.startsWith('plan-'));
+  assert.ok(wo.length > 3 && days.length > 10 && plan.length > 3);
+  wo.forEach(e => { assert.match(e.s, /^\d{8}T\d{6}$/); assert.ok(e.e > e.s); assert.match(e.d, /min · .* sets/); });
+  days.forEach(e => { assert.equal(e.a, 1); assert.match(e.t, /^Built \d+ · /); });
+  assert.ok(days.some(e => /Food: .* kcal/.test(e.d) && /Oats/.test(e.d)), 'meals listed');
+  assert.ok(plan.every(e => e.s > T.replace(/-/g, '')), 'plan is in the future');
+  S.modules.food = false; assert.ok(!calEvents(S, T).some(e => /Food:/.test(e.d)), 'no food when food is off');
+});
 console.log('all feature tests passed');

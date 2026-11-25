@@ -135,11 +135,30 @@ export function ics(q, now = new Date()) {
   BY.forEach((d, i) => { const n = clean(names[i]); if (n) add('gym-' + d, q.g, `Built: ${n} day`, `${n} is on the plan today.`, 'FREQ=WEEKLY;BYDAY=' + d); });
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Built//Reminders//EN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Built', 'REFRESH-INTERVAL;VALUE=DURATION:P1D', 'X-PUBLISHED-TTL:P1D', ...ev, 'END:VCALENDAR'].join('\r\n') + '\r\n';
 }
+/* ---------- your log as a calendar feed (GET ?cal=<token>) ---------- */
+// events: [{ u, a (all-day), s, e, t (title), d (description) }], built on the phone in its own time zone.
+const icsText = x => String(x || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+const fold = line => { const ch = Array.from(line), out = []; for (let i = 0; i < ch.length; i += 60) out.push((i ? ' ' : '') + ch.slice(i, i + 60).join('')); return out.join('\r\n'); }; // by characters, so emoji never split
+export function calFeedIcs(events, now = new Date()) {
+  const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z'), D = /^\d{8}$/, T = /^\d{8}T\d{6}$/;
+  const ev = (Array.isArray(events) ? events : []).filter(e => e && (e.a ? D.test(e.s) && D.test(e.e) : T.test(e.s) && T.test(e.e))).slice(0, 2000).map(e => [
+    'BEGIN:VEVENT', `UID:built-${String(e.u).replace(/[^a-z0-9-]/gi, '')}@built`, 'DTSTAMP:' + stamp,
+    e.a ? `DTSTART;VALUE=DATE:${e.s}` : `DTSTART:${e.s}`, e.a ? `DTEND;VALUE=DATE:${e.e}` : `DTEND:${e.e}`,
+    fold('SUMMARY:' + icsText(e.t)), ...(e.d ? [fold('DESCRIPTION:' + icsText(e.d))] : []), 'TRANSP:TRANSPARENT', 'END:VEVENT'].join('\r\n'));
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Built//Log//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Built', 'X-WR-CALDESC:Your workouts\\, food and days from Built', 'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H', ...ev, 'END:VCALENDAR'].join('\r\n') + '\r\n';
+}
 // Deno only: the HTTP entry point. pg_cron sends the shared secret in x-cron. (Turn off "Enforce JWT verification" for this function: the secret is the check.)
 if (typeof Deno !== 'undefined') {
   Deno.serve(async (req) => {
     const u = new URL(req.url);
     if (req.method === 'GET' && u.searchParams.get('ics')) return new Response(ics(Object.fromEntries(u.searchParams)), { headers: { 'content-type': 'text/calendar; charset=utf-8', 'content-disposition': 'inline; filename="built-reminders.ics"', 'cache-control': 'no-store' } });
+    if (req.method === 'GET' && u.searchParams.get('cal')) {
+      const env = { url: Deno.env.get('SUPABASE_URL'), key: Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') };
+      const r = await fetch(`${env.url}/rest/v1/rpc/fm_cal_get`, { method: 'POST', headers: { apikey: env.key, authorization: 'Bearer ' + env.key, 'content-type': 'application/json' }, body: JSON.stringify({ p_token: u.searchParams.get('cal') }) });
+      const events = r.ok ? await r.json() : null;
+      if (!Array.isArray(events)) return new Response('Not found', { status: 404 });
+      return new Response(calFeedIcs(events), { headers: { 'content-type': 'text/calendar; charset=utf-8', 'content-disposition': 'inline; filename="built.ics"', 'cache-control': 'no-store' } });
+    }
     let body = {}; try { body = await req.json(); } catch (e) {}
     const out = await run(req.headers.get('x-cron') || '', { url: Deno.env.get('SUPABASE_URL'), key: Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') }, fetch, Date.now(), { only: body.only, test: !!body.test });
     return new Response(JSON.stringify(out), { status: out.ok ? 200 : 401, headers: { 'content-type': 'application/json' } });

@@ -57,6 +57,13 @@ await t('calendar file: daily reminders plus each training day, with alerts', as
   assert.equal((c.match(/BEGIN:VEVENT/g) || []).length, 5); assert.equal((c.match(/BEGIN:VALARM/g) || []).length, 5);
   assert.ok(!/Up;per/.test(c), 'names are cleaned'); assert.ok(!ics({ m: 'x', g: '', e: '' }).includes('VEVENT'));
 });
+await t('calendar feed: valid events only, text escaped, emoji never split', async () => {
+  const { calFeedIcs } = await import('../supabase/functions/lifted-push/index.ts');
+  const c = calFeedIcs([{ u: 'wo-2026-11-23', a: 0, s: '20261123T173000', e: '20261123T183000', t: '🏋️ Upper, push; day', d: 'line1\n' + '🏋️'.repeat(80) }, { u: 'bad', a: 0, s: 'nope', e: 'x', t: 'x' }, { u: 'day-1', a: 1, s: '20261123', e: '20261124', t: 'Built 80' }], new Date('2026-11-25T00:00:00Z'));
+  assert.equal((c.match(/BEGIN:VEVENT/g) || []).length, 2); assert.match(c, /SUMMARY:🏋️ Upper\\, push\\; day/); assert.match(c, /DTSTART;VALUE=DATE:20261123/);
+  const unfolded = c.replace(/\r\n /g, ''); assert.ok(unfolded.includes('🏋️'.repeat(80)), 'folding keeps emoji whole');
+  assert.ok(c.split('\r\n').every(l => Array.from(l).length <= 75));
+});
 // SQL: needs PGlite (npm i --no-save @electric-sql/pglite); skipped without it.
 let PGlite, pgcrypto;
 try { ({ PGlite } = await import('@electric-sql/pglite')); ({ pgcrypto } = await import('@electric-sql/pglite/contrib/pgcrypto')); } catch (e) { console.log('skip SQL: PGlite not installed'); }
@@ -65,6 +72,7 @@ if (PGlite) {
   await db.exec('create schema if not exists extensions; create role anon nologin;');
   await db.exec(fs.readFileSync(new URL('../supabase/form-schema.sql', import.meta.url), 'utf8'));
   const push = fs.readFileSync(new URL('../supabase/push.sql', import.meta.url), 'utf8');
+  await db.exec(fs.readFileSync(new URL('../supabase/cal.sql', import.meta.url), 'utf8')); await db.exec(fs.readFileSync(new URL('../supabase/cal.sql', import.meta.url), 'utf8'));
   await db.exec(push); await db.exec(push);
   await db.exec(`update fm_push_keys set v = 's3cret' where k = 'cron'`);
   const call = async (fn, args) => { const keys = Object.keys(args); await db.exec('set role anon'); try { const r = await db.query(`select ${fn}(${keys.map((k, i) => `${k} => $${i + 1}`).join(', ')}) as r`, keys.map(k => (args[k] !== null && typeof args[k] === 'object' ? JSON.stringify(args[k]) : args[k]))); return r.rows[0].r; } finally { await db.exec('reset role'); } };
@@ -80,6 +88,15 @@ if (PGlite) {
   await call('fm_update', { p_token: a.token, p_display: null, p_avatar: null, p_stats: { duo: 'jay' } });
   await call('fm_update', { p_token: b.token, p_display: null, p_avatar: null, p_stats: { duo: 'sam', day: '2026-11-23', score: 80 } });
   const sub = { endpoint: 'https://web.push.apple.com/x', keys: { p256dh: 'k', auth: 'a' } };
+  await t('SQL: calendar feed saves, reads back, rejects bad tokens, deletes', async () => {
+    const tok = 'a'.repeat(32);
+    assert.equal((await call('fm_cal_save', { p_token: 'short', p_events: [] })).ok, false);
+    assert.equal((await call('fm_cal_save', { p_token: tok, p_events: [{ u: 'x' }] })).ok, true);
+    assert.deepEqual(await call('fm_cal_get', { p_token: tok }), [{ u: 'x' }]);
+    await call('fm_cal_save', { p_token: tok, p_events: null });
+    assert.equal(await call('fm_cal_get', { p_token: tok }), null);
+    await db.exec('set role anon'); await assert.rejects(db.query('select * from fm_cal'), /permission/); await db.exec('reset role');
+  });
   await t('SQL: register a phone, read it back with the secret only', async () => {
     assert.equal((await call('fm_push_save', { p_id: null, p_secret: null, p_token: a.token, p_sub: { endpoint: 'http://evil' }, p_prefs: {}, p_state: {}, p_tz: 0 })).ok, false);
     const r = await call('fm_push_save', { p_id: null, p_secret: null, p_token: a.token, p_sub: sub, p_prefs: { remind: true }, p_state: { day: 'd' }, p_tz: -300 });
