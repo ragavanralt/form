@@ -132,7 +132,11 @@ export function confetti(n = 120) {
 export const toggle = (act, on, arg = '') => `<button class="toggle ${on ? 'on' : ''}" data-act="${act}" data-arg="${esc(arg)}" role="switch" aria-checked="${on}"></button>`;
 export const ago = iso => { const s = (Date.now() - new Date(iso)) / 1000; if (s < 60) return 'now'; if (s < 3600) return Math.floor(s / 60) + 'm'; if (s < 86400) return Math.floor(s / 3600) + 'h'; if (s < 604800) return Math.floor(s / 86400) + 'd'; return new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }); };
 export async function share(text, title = 'Built') { try { if (navigator.share) { await navigator.share({ title, text }); return true; } } catch (e) { return false; } try { await navigator.clipboard.writeText(text); toast('Copied'); return true; } catch (e) { return false; } }
-export function download(name, text, type = 'application/json') { const b = new Blob([text], { type }); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); }
+// On iPhone (above all the Home Screen app) a download link does nothing, so files go through the share sheet: Save to Files.
+export async function download(name, text, type = 'application/json') {
+  const b = new Blob([text], { type });
+  if (/iPhone|iPad|iPod/.test(navigator.userAgent) && navigator.canShare) { try { const f = new File([b], name, { type }); if (navigator.canShare({ files: [f] })) { await navigator.share({ files: [f] }); return; } } catch (e) { if (e && e.name === 'AbortError') return; } }
+  const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); }
 export function pickFiles(accept = 'image/*', multiple = false, capture = false) {
   // The input lives in the page until it fires: iOS Safari drops detached inputs before change.
   return new Promise(res => { const i = document.createElement('input'); i.type = 'file'; if (accept) i.accept = accept; i.multiple = multiple; if (capture) i.setAttribute('capture', 'environment'); i.style.cssText = 'position:fixed;left:-9999px;opacity:0'; document.body.appendChild(i); i.onchange = () => { res([...i.files]); i.remove(); }; i.click(); });

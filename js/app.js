@@ -14,7 +14,7 @@ import { startOnboarding } from './views/onboarding.js';
 import { checkRewards } from './views/daily.js';
 import { wrappedDue } from './season.js';
 import { openWrapped } from './views/wrapped.js';
-import { pushSync } from './push.js';
+import { pushSync, prepPush } from './push.js';
 FX.on = () => on('celebrate');
 afterSave.push(pushSync);
 
@@ -45,7 +45,7 @@ A.go = v => {
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   const f = A[el.dataset.act]; if (!f) return;
-  if (el.tagName === 'A') e.preventDefault();
+  if (el.tagName === 'A' && !el.hasAttribute('href')) e.preventDefault();
   try { const r = f(el.dataset.arg, el, e); if (r && r.catch) r.catch(err => console.error(err)); } catch (err) { console.error(err); }
 });
 document.addEventListener('input', e => { const el = e.target.closest('[data-ch]'); if (!el) return; const f = CH[el.dataset.ch]; if (f && el.type !== 'range' || f && e.type === 'input') f(el, e); });
@@ -82,7 +82,7 @@ async function boot() {
   const popup = () => { if (!S.onboarded || !$('#sheetwrap').hidden) return; const sn = on('seasons') ? wrappedDue(S) : 0; if (sn) { openWrapped(sn, true); return; } const ws = on('recap') ? recapDue() : null; if (ws) { openRecap(ws); return; } if (on('friends')) awaySheet(); };
   if (Social.on) { await refresh(); handleAddParam(); setTimeout(popup, 600); }
   else { ping().then(() => { if (R.cur === 'friends') vFriends(); }); handleAddParam(); setTimeout(popup, 600); }
-  pushSync();
+  pushSync(); prepPush();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 boot();

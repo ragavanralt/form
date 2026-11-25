@@ -34,20 +34,40 @@ async function save(sub) {
   if (sub && r.id) { Push.d = { ...Push.d, id: r.id, secret: r.secret, on: true }; ls.set(Push.d); }
   return r;
 }
-// Ask permission, subscribe, register with the server. Throws { code } on failure.
+// The server's public key, fetched ahead of time: iPhone only lets a web app subscribe right after a tap,
+// so nothing slow (like a network call) may sit between the tap and subscribe().
+const KK = 'form2:vapid';
+Push.key = (() => { try { return localStorage.getItem(KK) || ''; } catch (e) { return ''; } })();
+export async function prepPush() {
+  if (!pushCan()) return '';
+  try { const r = await rpc('fm_push_vapid'); if (r && r.key && r.key !== Push.key) { Push.key = r.key; localStorage.setItem(KK, r.key); } } catch (e) {}
+  return Push.key;
+}
+const sameKey = (sub, key) => { try { const a = new Uint8Array(sub.options.applicationServerKey), b = b64(key); return a.length === b.length && a.every((x, i) => x === b[i]); } catch (e) { return true; } };
+// Subscribe and register with the server. Call straight from a tap. Throws { code, msg } on failure.
 export async function pushOn() {
   if (!pushCan()) throw { code: isIOS() && !standalone() ? 'install' : 'unsupported' };
-  const perm = await Notification.requestPermission();
-  if (perm !== 'granted') throw { code: 'denied' };
-  const reg = await navigator.serviceWorker.ready;
+  if (Notification.permission === 'denied') throw { code: 'denied' };
+  const key = Push.key || await prepPush();
+  if (!key) throw { code: 'down' };
+  const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
   let sub = await reg.pushManager.getSubscription();
-  if (!sub) {
-    let key = null; try { key = (await rpc('fm_push_vapid')).key; } catch (e) { throw e && e.code ? e : { code: 'down' }; }
-    if (!key) throw { code: 'warming' };
-    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(key) });
+  if (sub && !sameKey(sub, key)) { try { await sub.unsubscribe(); } catch (e) {} sub = null; } // left over from an older key
+  try {
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(key) }); // this asks permission on iPhone
+  } catch (e) {
+    if (Notification.permission === 'denied' || (e && e.name === 'NotAllowedError')) throw { code: 'denied' };
+    throw { code: 'fail', msg: (e && (e.name + ': ' + e.message)) || String(e) };
   }
+  if (Notification.permission !== 'granted') { const p = await Notification.requestPermission(); if (p !== 'granted') throw { code: 'denied' }; }
   try { await save(sub.toJSON()); } catch (e) { throw e && e.code ? e : { code: 'down' }; }
   lastSig = ''; Push.status = 'on';
+}
+// Ask the server to send this phone a test notification right now.
+export async function pushTest() {
+  const r = await rpc('fm_push_test', { p_id: Push.d.id || null, p_secret: Push.d.secret || null });
+  if (r && r.ok === false) throw { code: r.error || 'fail' };
+  return r;
 }
 export async function pushOff() {
   try { const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription(); if (sub) await sub.unsubscribe(); } catch (e) {}
@@ -69,4 +89,4 @@ export function pushSync() {
     } catch (e) {}
   }, 20000);
 }
-export const pushErr = e => ({ install: 'On iPhone, add Built to your Home Screen first (Share → Add to Home Screen), then open it from there.', unsupported: 'This browser can’t do notifications.', denied: 'Notifications are blocked. Turn them on for Built in your phone’s Settings → Notifications.', nosetup: 'The notifications server isn’t set up yet.', down: 'Can’t reach the server right now. Try again in a bit.', warming: 'Notifications are still starting up on the server. Try again in about 10 minutes.' })[e && e.code] || 'Couldn’t turn on notifications.';
+export const pushErr = e => ({ install: 'On iPhone, add Built to your Home Screen first (Share → Add to Home Screen), then open it from there.', unsupported: 'This browser can’t do notifications.', denied: 'Notifications are blocked. Turn them on for Built in your phone’s Settings → Notifications.', nosetup: 'The notifications server isn’t set up yet.', down: 'Can’t reach the server right now. Try again in a bit.', warming: 'Notifications are still starting up on the server. Try again in about 10 minutes.', too_soon: 'Give it 30 seconds between tests.', not_found: 'This phone isn’t registered. Turn notifications off and on again.' })[e && e.code] || ('Couldn’t turn on notifications' + (e && e.msg ? ' (' + e.msg + ')' : '.'));

@@ -50,6 +50,13 @@ await t('payload encryption round trip (aes128gcm)', async () => {
   assert.equal(pt.subarray(0, -1).toString(), '{"title":"x"}'); assert.equal(pt.at(-1), 2);
 });
 
+await t('calendar file: daily reminders plus each training day, with alerts', async () => {
+  const { ics } = await import('../supabase/functions/lifted-push/index.ts');
+  const c = ics({ m: '8:30', g: '18:00', e: '21:30', p: '|Upper|Lower||Up;per\nx||' }, new Date('2026-11-25T12:00:00Z'));
+  assert.match(c, /^BEGIN:VCALENDAR\r\n/); assert.match(c, /DTSTART:20261125T083000/); assert.match(c, /BYDAY=MO/); assert.match(c, /BYDAY=TU/);
+  assert.equal((c.match(/BEGIN:VEVENT/g) || []).length, 5); assert.equal((c.match(/BEGIN:VALARM/g) || []).length, 5);
+  assert.ok(!/Up;per/.test(c), 'names are cleaned'); assert.ok(!ics({ m: 'x', g: '', e: '' }).includes('VEVENT'));
+});
 // SQL: needs PGlite (npm i --no-save @electric-sql/pglite); skipped without it.
 let PGlite, pgcrypto;
 try { ({ PGlite } = await import('@electric-sql/pglite')); ({ pgcrypto } = await import('@electric-sql/pglite/contrib/pgcrypto')); } catch (e) { console.log('skip SQL: PGlite not installed'); }
@@ -103,6 +110,12 @@ if (PGlite) {
     assert.equal(out.ok, true); assert.ok(hits.length >= 1); assert.match(hits[0].Authorization, /^vapid t=/); assert.equal(out.gone, 1);
     assert.equal((await call('fm_push_batch', { p_secret: 's3cret' })).devices.length, 0, 'gone phone removed');
     assert.match((await call('fm_push_vapid', {})).key, /^[A-Za-z0-9_-]{87}$/, 'first run made a real key pair');
+    const hits2 = [];
+    await call('fm_push_save', { p_id: null, p_secret: null, p_token: '', p_sub: { endpoint: 'https://web.push.apple.com/y', keys: { p256dh: b64u.enc(ua.getPublicKey()), auth: b64u.enc(crypto.randomBytes(16)) } }, p_prefs: {}, p_state: {}, p_tz: 0 });
+    const id2 = (await call('fm_push_batch', { p_secret: 's3cret' })).devices[0].id;
+    const f2 = async (url, init) => { if (url.startsWith('https://web.push')) { hits2.push(url); return { status: 201 }; } const fn = url.split('/rpc/')[1]; return { json: async () => call(fn, JSON.parse(init.body)) }; };
+    const o2 = await run('s3cret', { url: 'https://db', key: 'anon' }, f2, Date.UTC(2026, 10, 24, 15, 0), { only: id2, test: true });
+    assert.equal(o2.sent, 1, 'a test push goes out at any hour'); assert.equal(hits2[0], 'https://web.push.apple.com/y');
     void r;
   });
 }

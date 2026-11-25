@@ -1,7 +1,8 @@
 // Settings: profile, modules, targets, appearance, AI, friends and privacy, reminders, data.
 import { S, save, touch, render, replaceState, hasV1, readV1, KEY } from '../store.js';
 import { MODULES, ACTIVITY, suggestTargets, weights, PART, esc, fmt, nint, num, todayK, migrateV1, normalize, freshState, addDays, pdk, totals, score, FEATURES } from '../core.js';
-import { Push, pushOn, pushOff, pushOnNow, pushErr, pushCan, standalone, isIOS, pushSync } from '../push.js';
+import { Push, pushOn, pushOff, pushOnNow, pushErr, pushCan, standalone, isIOS, pushSync, prepPush, pushTest } from '../push.js';
+import { SERVER } from '../social.js';
 import { A, CH, I, $, openSheet, setSheet, closeSheet, toast, toggle, download, pickFiles, avatar, avPicker } from '../ui.js';
 import { aiLabel, gemKey, setGemKey, testKey, errMsg } from '../ai.js';
 import { Social, socialErr } from '../social.js';
@@ -108,21 +109,23 @@ A.setRemind = () => {
   const R2 = S.settings.remind, N = S.settings.notif = S.settings.notif || {}, onNow = pushOnNow();
   const blocked = typeof Notification !== 'undefined' && Notification.permission === 'denied';
   const kinds = [['remind', 'Reminders', 'Morning plan, training days, closing out the day'], ['streak', 'Streak at risk', 'An evening heads-up if today doesn’t count yet'], ['drop', 'Daily Drop', 'Tells you what today’s challenge is'], ['friends', 'Friends', 'Nudges, reactions, your duo partner']];
-  const top = onNow ? `<div class="card tight"><div class="li noic"><span><span class="t">Phone notifications</span><span class="s">On for this phone</span></span>${toggle('pushT', true)}</div></div>`
+  prepPush();
+  const top = onNow ? `<div class="card tight"><div class="li noic"><span><span class="t">Phone notifications</span><span class="s">On for this phone</span></span>${toggle('pushT', true)}</div><button class="li noic" data-act="pushTestGo"><span><span class="t">Send a test notification</span><span class="s">Arrives in a few seconds</span></span><span class="chev">${I.send}</span></button></div>`
     : isIOS() && !standalone() ? `<div class="note">On iPhone, notifications only work from the Home Screen app. Tap Share → Add to Home Screen, open Built from there, then come back here.</div>`
     : !pushCan() ? `<div class="note">This browser can’t show notifications. Calendar reminders below still work.</div>`
     : `<button class="btn wide" data-act="pushT">${I.bell} Turn on notifications</button>${blocked ? '<p class="faint small center">Blocked in your phone’s settings. Allow them for Built there first.</p>' : ''}`;
   openSheet('rem', 'Notifications', `${top}
   <div class="sec"><div class="lab">What to send</div><div class="card tight"><div class="list">${kinds.map(([k, t, s2]) => `<div class="li noic"><span><span class="t">${t}</span><span class="s">${s2}</span></span>${toggle('notifT', N[k] !== false, k)}</div>`).join('')}</div></div></div>
   <div class="sec"><div class="lab">Times</div><div class="card tight"><div class="list">${[['morning', 'Morning'], ['gym', 'Training reminder'], ['evening', 'Evening check']].map(([k, t]) => `<div class="li noic"><span class="t">${t}</span><input type="time" value="${R2[k]}" data-ch="remT" data-k="${k}" style="width:136px;padding:8px"></div>`).join('')}</div></div><p class="faint small">No friend pings between 10:30 pm and 8 am.</p></div>
-  <div class="sec"><div class="lab">No notifications?</div><button class="btn line wide" data-act="remDl">${I.calendar} Add reminders to Calendar instead</button></div>`, { full: true });
+  <div class="sec"><div class="lab">Calendar reminders</div><a class="btn line wide" href="${calUrl()}" target="_blank" rel="noopener" data-act="remCal">${I.calendar} Add to Calendar</a><p class="faint small">Opens your reminders and training days as calendar events with alerts. Tap <b>Add All</b>. Changed your times or plan? Delete the old Built events in Calendar and add again.</p></div>`, { full: true });
 };
 A.pushT = async (a, btn) => {
   if (pushOnNow()) { await pushOff(); toast('Notifications off'); A.setRemind(); return; }
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Turning on…'; }
-  try { await pushOn(); toast('Notifications on'); } catch (e) { toast(pushErr(e)); }
+  try { await pushOn(); toast('Notifications on. Sending a test…'); setTimeout(() => A.pushTestGo(), 800); } catch (e) { toast(pushErr(e), null, 6000); }
   A.setRemind();
 };
+A.pushTestGo = async () => { try { await pushTest(); toast('Test sent. Check your notifications'); } catch (e) { toast(pushErr(e)); } };
 A.notifT = k => { const N = S.settings.notif = S.settings.notif || {}; N[k] = N[k] === false; save(); pushSync(); A.setRemind(); };
 
 /* ---------- features ---------- */
@@ -134,16 +137,14 @@ A.setFeatures = () => {
 };
 A.featT = id => { const F = S.settings.features; F[id] = F[id] === false; save(); render(); pushSync(); A.setFeatures(); };
 CH.remT = el => { S.settings.remind[el.dataset.k] = el.value; save(); pushSync(); };
-A.remDl = () => {
-  const R2 = S.settings.remind, stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z'), t = todayK().replace(/-/g, ''), ev = [];
-  const add = (id, hm, title, desc, rule) => { const m = /^(\d{1,2}):(\d{2})$/.exec(hm || ''); if (!m) return; ev.push(['BEGIN:VEVENT', `UID:form2-${id}-${t}@form`, 'DTSTAMP:' + stamp, `DTSTART:${t}T${m[1].padStart(2, '0')}${m[2]}00`, 'DURATION:PT10M', 'RRULE:' + rule, 'SUMMARY:' + title, 'DESCRIPTION:' + desc, 'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + title, 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT'].join('\r\n')); };
-  add('am', R2.morning, 'Built: plan your day', 'Open Built and check your next best move.', 'FREQ=DAILY');
-  add('pm', R2.evening, 'Built: close out the day', 'Log what’s left and see your score.', 'FREQ=DAILY');
-  const days = Object.entries(S.plan).filter(([, v]) => v !== 'rest').map(([d]) => ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][d]);
-  if (days.length) add('gym', R2.gym, 'Built: training day', 'Your workout is planned for today.', 'FREQ=WEEKLY;BYDAY=' + days.join(','));
-  S.settings.remind.on = true; save();
-  download('built-reminders.ics', ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Built//Reminders//EN', 'X-WR-CALNAME:Built', ...ev, 'END:VCALENDAR'].join('\r\n') + '\r\n', 'text/calendar');
-};
+// The calendar file comes from the server as a normal web link, because Home Screen apps on iPhone can't download files.
+// m/g/e are the times; p is each weekday's workout name (Sunday first), empty on rest days.
+function calUrl() {
+  const R2 = S.settings.remind, names = [0, 1, 2, 3, 4, 5, 6].map(d => { const id = S.plan[d]; if (!id || id === 'rest') return ''; const r = S.routines.find(x => x.id === id); return r ? r.name.replace(/\|/g, ' ') : 'Workout'; });
+  const q = new URLSearchParams({ ics: '1', m: R2.morning || '', g: R2.gym || '', e: R2.evening || '', p: names.join('|') });
+  return `${SERVER.url}/functions/v1/lifted-push?${q}`;
+}
+A.remCal = (a, el) => { S.settings.remind.on = true; save(); if (el && el.href !== calUrl()) el.href = calUrl(); };
 
 /* ---------- workout settings ---------- */
 A.setTraining = () => openSheet('trs', 'Workout settings', `<div class="field"><span>Default rest</span><div class="seg">${[60, 90, 120, 180].map(v => `<button class="${S.settings.rest === v ? 'on' : ''}" data-act="trRest" data-arg="${v}">${v < 120 ? v + ' s' : v / 60 + ' min'}</button>`).join('')}</div>${[60, 90, 120, 180].includes(S.settings.rest) ? '' : `<span class="faint small">Now ${S.settings.rest} s</span>`}</div>

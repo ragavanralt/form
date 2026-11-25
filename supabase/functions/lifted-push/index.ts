@@ -96,7 +96,7 @@ export function due(dev, now = Date.now()) {
 function prevDay(day) { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); }
 
 /* ---------- the function ---------- */
-export async function run(secret, env, f = fetch, now = Date.now()) {
+export async function run(secret, env, f = fetch, now = Date.now(), opts = {}) {
   const rpc = (fn, args) => f(`${env.url}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: env.key, authorization: 'Bearer ' + env.key, 'content-type': 'application/json' }, body: JSON.stringify(args) }).then(r => r.json());
   let b = await rpc('fm_push_batch', { p_secret: secret });
   if (!b || !b.ok) return { ok: false, error: (b && b.error) || 'batch' };
@@ -108,8 +108,10 @@ export async function run(secret, env, f = fetch, now = Date.now()) {
     if (!b || !b.ok || !b.keys || !b.keys.public) return { ok: false, error: 'keys' };
   }
   let sent = 0, gone = 0;
-  for (const dev of b.devices || []) {
+  const devs = (b.devices || []).filter(x => !opts.only || x.id === opts.only);
+  for (const dev of devs) {
     const d = due(dev, now);
+    if (opts.test) d.out = [{ tag: 'test', title: 'Notifications are on', body: 'This is how Built will reach you. Change what you get in Settings → Notifications.' }];
     let dead = false;
     for (const msg of d.out) {
       try { const s = await sendPush(dev.sub, { ...msg, url: './' }, b.keys, f); if (s === 404 || s === 410) { dead = true; break; } if (s < 300) sent++; } catch (e) { /* one bad phone shouldn't stop the rest */ }
@@ -119,10 +121,27 @@ export async function run(secret, env, f = fetch, now = Date.now()) {
   }
   return { ok: true, devices: (b.devices || []).length, sent, gone };
 }
+
+/* ---------- calendar file (GET ?ics=1): reminders as events with alerts, for phones without push ---------- */
+// m, g, e: times (HH:MM); p: the 7 weekday workout names Sunday first, joined by |, empty for rest days.
+export function ics(q, now = new Date()) {
+  const t = hm => (/^\d{1,2}:\d{2}$/.test(hm || '') ? hm.split(':').map(x => x.padStart(2, '0')).join('') + '00' : '');
+  const day = now.toISOString().slice(0, 10).replace(/-/g, ''), stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+  const clean = x => String(x || '').replace(/[\r\n,;\\]/g, ' ').slice(0, 60);
+  const ev = [], add = (id, hm, title, desc, rule) => { const tt = t(hm); if (!tt) return; ev.push(['BEGIN:VEVENT', `UID:built-${id}@built`, 'DTSTAMP:' + stamp, `DTSTART:${day}T${tt}`, 'DURATION:PT10M', 'RRULE:' + rule, 'SUMMARY:' + title, 'DESCRIPTION:' + desc, 'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + title, 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT'].join('\r\n')); };
+  add('am', q.m, 'Built: plan your day', 'Open Built for today’s drop and your next best move.', 'FREQ=DAILY');
+  add('pm', q.e, 'Built: close out today', 'Log what’s left and keep your streak alive.', 'FREQ=DAILY');
+  const names = String(q.p || '').split('|'), BY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+  BY.forEach((d, i) => { const n = clean(names[i]); if (n) add('gym-' + d, q.g, `Built: ${n} day`, `${n} is on the plan today.`, 'FREQ=WEEKLY;BYDAY=' + d); });
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Built//Reminders//EN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Built', 'REFRESH-INTERVAL;VALUE=DURATION:P1D', 'X-PUBLISHED-TTL:P1D', ...ev, 'END:VCALENDAR'].join('\r\n') + '\r\n';
+}
 // Deno only: the HTTP entry point. pg_cron sends the shared secret in x-cron. (Turn off "Enforce JWT verification" for this function: the secret is the check.)
 if (typeof Deno !== 'undefined') {
   Deno.serve(async (req) => {
-    const out = await run(req.headers.get('x-cron') || '', { url: Deno.env.get('SUPABASE_URL'), key: Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') });
+    const u = new URL(req.url);
+    if (req.method === 'GET' && u.searchParams.get('ics')) return new Response(ics(Object.fromEntries(u.searchParams)), { headers: { 'content-type': 'text/calendar; charset=utf-8', 'content-disposition': 'inline; filename="built-reminders.ics"', 'cache-control': 'no-store' } });
+    let body = {}; try { body = await req.json(); } catch (e) {}
+    const out = await run(req.headers.get('x-cron') || '', { url: Deno.env.get('SUPABASE_URL'), key: Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') }, fetch, Date.now(), { only: body.only, test: !!body.test });
     return new Response(JSON.stringify(out), { status: out.ok ? 200 : 401, headers: { 'content-type': 'application/json' } });
   });
 }
