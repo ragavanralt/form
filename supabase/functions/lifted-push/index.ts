@@ -86,7 +86,7 @@ export function due(dev, now = Date.now()) {
   if (p.friends && m >= 8 * 60 && m < 22 * 60 + 30) {
     const n = dev.nudges || [], r = dev.reactions || [];
     const verb = { nudge: 'nudged you', flex: 'is flexing on you', cheer: 'is cheering you on', challenge: 'challenged you' };
-    if (n.length) { const x = n[n.length - 1]; out.push({ tag: 'nudge', title: `${first(x.from)} ${verb[x.kind] || 'pinged you'}`, body: x.msg || (n.length > 1 ? `And ${n.length - 1} more` : 'Open Lifted to reply') }); }
+    if (n.length) { const x = n[n.length - 1]; out.push({ tag: 'nudge', title: `${first(x.from)} ${verb[x.kind] || 'pinged you'}`, body: x.msg || (n.length > 1 ? `And ${n.length - 1} more` : 'Open Built to reply') }); }
     else if (r.length) { const x = r[r.length - 1]; out.push({ tag: 'react', title: `${first(x.from)} reacted ${x.emoji}`, body: r.length > 1 ? `${r.length} new reactions on your posts` : `On your ${x.kind === 'workout' ? 'workout' : x.kind === 'day' ? 'day' : 'post'}` }); }
     if (n.length || r.length) mark.ev = [...n, ...r].map(x => x.at).sort().pop();
     if (theyDid && score < 45 && sent.duo !== day && !out.some(o => o.tag === 'evening')) { mark.duo = day; out.push({ tag: 'duo', title: `${pname} did their part`, body: 'Your duo streak is waiting on you today.' }); }
