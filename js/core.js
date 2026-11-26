@@ -99,6 +99,7 @@ export function blankDay() { return { u: 0, meals: [], steps: 0, water: 0, supps
 export function normDay(d) {
   if (!Array.isArray(d.meals)) d.meals = [];
   if (!Array.isArray(d.cardio)) d.cardio = [];
+  if (d.plan && !Array.isArray(d.plan)) d.plan = [];
   d.steps = +d.steps || 0; d.water = +d.water || 0; d.weight = +d.weight || 0;
   if (!d.supps || typeof d.supps !== 'object') d.supps = {};
   return d;

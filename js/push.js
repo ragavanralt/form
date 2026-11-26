@@ -2,7 +2,8 @@
 // summary of the day (score, streak, plan, today's drop) so the server can send the right reminder at the right time.
 // On iPhone this works only when Built is opened from the Home Screen (iOS 16.4+).
 import { S, on, streak, scoreOf, hist, build } from './store.js';
-import { todayK, liftDone, routineName, planned, addDays } from './core.js';
+import { todayK, liftDone, routineName, planned, addDays, totals, cardioMin, tierOf, TIER_L } from './core.js';
+import { mealTimes, workoutTime, mealDay } from './habits.js';
 import { Social, rpc } from './social.js';
 
 const K = 'form2:push';
@@ -15,7 +16,19 @@ export const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
 export const pushOnNow = () => !!(Push.d.on && Push.d.id);
 
 const b64 = s => { const p = '='.repeat((4 - (s.length % 4)) % 4), r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...r].map(c => c.charCodeAt(0))); };
-function prefs() { const n = S.settings.notif || {}, r = S.settings.remind || {}; return { remind: n.remind !== false, streak: n.streak !== false && on('streak'), drop: n.drop !== false && on('drop'), friends: n.friends !== false && on('friends'), morning: r.morning || '08:30', gym: r.gym || '18:00', evening: r.evening || '21:00' }; }
+// Every kind can be switched off in Settings → Notifications; meal and workout times are learned unless set.
+export const NOTIF_KINDS = [
+  ['morning', 'Morning plan', 'What’s on today: workout, planned breakfast, today’s drop'],
+  ['meals', 'Meal reminders', 'At your usual meal times, if you haven’t logged that meal. Names what you planned'],
+  ['workout', 'Workout reminder', 'At your usual training time on workout days, if you haven’t trained'],
+  ['recap', 'Nightly recap', 'How the day went, what’s left, and a nudge to plan tomorrow'],
+  ['streak', 'Streak at risk', 'Replaces the recap when today doesn’t count yet'],
+  ['friends', 'Friends', 'Nudges, reactions, your duo partner'],
+];
+function prefs() {
+  const n = S.settings.notif || {}, r = S.settings.remind || {}, o = k => n[k] !== false;
+  return { morning: o('morning') ? r.morning || '08:00' : '', meals: o('meals') && S.modules.food, workout: o('workout') && S.modules.train, recap: o('recap') ? r.evening || '21:30' : '', streak: o('streak') && on('streak'), drop: on('drop'), friends: o('friends') && on('friends') };
+}
 function state() {
   const t = todayK(), sc = scoreOf(t), st = streak(), d = S.days[t];
   const plan = Array.from({ length: 7 }, (_, i) => { const k = addDays(t, (i - new Date().getDay() + 7) % 7); const fx = planned(S, k); return fx === 'rest' ? '' : routineName(S, fx); });
@@ -24,7 +37,15 @@ function state() {
   const b = S.modules.train && on('build') ? build() : null, cold = b && b.cooling[0] ? b.cooling[0].n : '';
   const fx = planned(S, t), r = S.routines.find(x => x.id === fx);
   const last = r && on('ghost') ? hist().sessions.filter(s => s.name === r.name && s.date < t).at(-1) : null;
-  return { day: t, score: sc.total, streak: st.streak, trained: liftDone(d), plan, drop, cold, ghost: last ? Math.round(last.vol).toLocaleString('en-CA') + ' ' + (S.profile.units || 'kg') : '' };
+  // the day so far, for the nightly recap
+  const tt = totals(d || { meals: [] }), T = S.targets, parts = [];
+  if (S.modules.train) parts.push(fx === 'rest' ? ['Rest day', 1] : [liftDone(d) ? `${(d.wo || {}).name || 'Workout'} done` : 'No workout', liftDone(d) ? 1 : 0]);
+  if (S.modules.food) parts.push([`${Math.round(tt.p)}/${T.pro} g protein`, tt.p >= T.pro ? 1 : 0], [`${Math.round(tt.cal).toLocaleString('en-CA')} kcal`, (d && d.meals.length && Math.abs(tt.cal - T.cal) <= 300) ? 1 : 0]);
+  if (S.modules.steps) parts.push([`${((d && d.steps) || 0) >= 1000 ? (d.steps / 1000).toFixed(1) + 'k' : (d && d.steps) || 0} steps`, ((d && d.steps) || 0) >= T.steps ? 1 : 0]);
+  if (S.modules.cardio && cardioMin(d || {})) parts.push([`${cardioMin(d)} min cardio`, 1]);
+  const mt = mealTimes(S, t), wt = workoutTime(S, t), tmr = addDays(t, 1);
+  return { day: t, score: sc.total, tier: TIER_L[tierOf(sc.total)], streak: st.streak, trained: liftDone(d), plan, drop, cold, ghost: last ? Math.round(last.vol).toLocaleString('en-CA') + ' ' + (S.profile.units || 'kg') : '',
+    parts, meals: mealDay(S, t, mt), woAt: wt.at, tmr: { day: tmr, meals: mealDay(S, tmr, mt), planned: (S.days[tmr] && (S.days[tmr].plan || []).length) || 0 } };
 }
 let dropText = () => '';
 export const setDropText = f => { dropText = f; };

@@ -1,7 +1,7 @@
 // Form 2 service worker: opens offline. Own files are network-first so updates land on the next open;
 // fonts are cache-first. AI and friends-server calls are never cached. Form Classic (classic/) has its own worker.
-const CACHE = 'form2-v26';
-const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'css/app.css', 'js/app.js', 'js/core.js', 'js/store.js', 'js/ui.js', 'js/ai.js', 'js/social.js', 'js/charts.js', 'js/body.js', 'js/anatomy.js', 'js/exercises.js', 'js/backup.js', 'js/draw.js', 'js/build.js', 'js/drop.js', 'js/loot.js', 'js/season.js', 'js/duo.js', 'js/push.js', 'js/cal.js', 'js/calsync.js',
+const CACHE = 'form2-v27';
+const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'css/app.css', 'js/app.js', 'js/core.js', 'js/store.js', 'js/ui.js', 'js/ai.js', 'js/social.js', 'js/charts.js', 'js/body.js', 'js/anatomy.js', 'js/exercises.js', 'js/backup.js', 'js/draw.js', 'js/build.js', 'js/drop.js', 'js/loot.js', 'js/season.js', 'js/duo.js', 'js/push.js', 'js/cal.js', 'js/calsync.js', 'js/habits.js', 'js/views/plan.js',
   'js/views/today.js', 'js/views/log.js', 'js/views/train.js', 'js/views/progress.js', 'js/views/friends.js', 'js/views/settings.js', 'js/views/onboarding.js', 'js/views/daily.js', 'js/views/wrapped.js', 'icon-180.png', 'assets/avatars/violet1.svg', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('form2-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
@@ -24,5 +24,5 @@ self.addEventListener('push', e => {
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   const url = new URL((e.notification.data && e.notification.data.url) || './', self.registration.scope).href;
-  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => { const c = cs.find(x => x.url.startsWith(self.registration.scope)); return c ? c.focus() : self.clients.openWindow(url); }));
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => { const c = cs.find(x => x.url.startsWith(self.registration.scope)); if (c) { c.postMessage({ open: url }); return c.focus(); } return self.clients.openWindow(url); }));
 });

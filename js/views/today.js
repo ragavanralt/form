@@ -9,6 +9,7 @@ import { buildCard, dropCard, ghostWeekCard } from './daily.js';
 import { duoCard } from './friends.js';
 import { seasonOf, seasonStats } from '../season.js';
 import { exDrawing } from '../draw.js';
+import { planRows } from './plan.js';
 
 R.day = todayK();
 const dayLabel = k => (k === todayK() ? 'Today' : k === addDays(todayK(), -1) ? 'Yesterday' : pdk(k).toLocaleDateString('en-CA', { weekday: 'long' }));
@@ -97,7 +98,9 @@ function foodCard(k, d) {
     <div class="fhero">${ring(Math.min(1, t.cal / (T.cal || 1)), 'food', 108, 10, `<b>${fmt(Math.abs(left))}</b><small>${left >= 0 ? 'left' : 'over'}</small>`)}
       <div class="mrings">${mac('Protein', t.p, T.pro, 'pro')}${mac('Carbs', t.c, T.carb, 'carb')}${mac('Fat', t.f, T.fat, 'fat')}</div></div>
     ${d.meals.length ? `<div class="thumbs">${d.meals.slice().reverse().map(m => `<button class="thumb" data-act="mealEdit" data-arg="${m.id}">${m.img ? `<img src="${m.img}" alt="">` : `<span>${esc(m.emoji || '🍽️')}</span>`}<b>${fmt(m.cal)}</b></button>`).join('')}</div>` : ''}
-    <div class="actions"><button class="act hot" data-act="snap">${I.cam}Snap</button><button class="act" data-act="describe">${I.spark}Describe</button><button class="act" data-act="foodSearch">${I.search}Foods</button></div></div>`;
+    ${planRows(k)}
+    <div class="actions"><button class="act hot" data-act="snap">${I.cam}Snap</button><button class="act" data-act="describe">${I.spark}Describe</button><button class="act" data-act="foodSearch">${I.search}Foods</button></div>
+    <button class="link small mt" data-act="planMeals" data-arg="${k === todayK() ? addDays(k, 1) : k}" style="display:block">${I.calendar} Plan ${k === todayK() ? 'tomorrow’s' : 'this day’s'} meals</button></div>`;
 }
 const mealRow = m => `<button class="meal" data-act="mealEdit" data-arg="${m.id}"><span class="ph">${m.img ? `<img src="${m.img}" alt="">` : esc(m.emoji || '🍽️')}</span><span class="grow"><span class="nm ell" style="display:block">${esc(m.name)}</span><span class="mm">${MEAL_L[m.type] || ''} · ${m.p}g protein</span></span><span class="kc">${fmt(m.cal)}</span></button>`;
 A.mealsAll = () => { const d = get(R.day); openSheet('meals', 'Meals', MEALS.map(mt => { const ms = d.meals.filter(m => (m.type || 'snack') === mt); return ms.length ? `<div class="mhead"><span>${MEAL_L[mt]}</span><span>${fmt(ms.reduce((a, m) => a + (+m.cal || 0), 0))} kcal</span></div>${ms.map(mealRow).join('')}` : ''; }).join('')); };

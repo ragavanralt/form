@@ -111,4 +111,15 @@ t('calendar: workouts at their time, days with food, planned workouts ahead', as
   assert.ok(plan.every(e => e.s > T.replace(/-/g, '')), 'plan is in the future');
   S.modules.food = false; assert.ok(!calEvents(S, T).some(e => /Food:/.test(e.d)), 'no food when food is off');
 });
+t('habits: meal and workout times learned from the log, or set by you', async () => {
+  const { mealTimes, workoutTime, mealDay } = await import('../js/habits.js');
+  const S = seedState(30, T);
+  Object.values(S.days).forEach(d => d.meals.forEach(m => { m.t = { breakfast: '07:50', lunch: '12:35', dinner: '19:10', snack: '15:00' }[m.type]; }));
+  const mt = mealTimes(S, T); assert.equal(mt.lunch.at, '12:35'); assert.ok(mt.lunch.learned);
+  S.settings.notif = { times: { lunch: '13:00' } }; assert.equal(mealTimes(S, T).lunch.at, '13:00'); assert.ok(mealTimes(S, T).lunch.set);
+  assert.match(workoutTime(S, T).at, /^\d\d:\d\d$/);
+  const F = freshState(); assert.equal(mealTimes(F, T).dinner.at, '18:30'); assert.equal(workoutTime(F, T).learned, false);
+  F.days[T] = { meals: [{ type: 'lunch', name: 'x' }], plan: [{ type: 'dinner', name: 'Steak', cal: 700 }] };
+  const md = mealDay(F, T, mealTimes(F, T)); assert.equal(md.lunch.logged, true); assert.deepEqual(md.dinner.plan, ['Steak']); assert.equal(md.dinner.kcal, 700);
+});
 console.log('all feature tests passed');

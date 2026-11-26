@@ -55,44 +55,69 @@ export async function newVapid() {
 }
 
 /* ---------- what is due for one phone ---------- */
-const DEF = { remind: true, streak: true, drop: true, friends: true, morning: '08:30', gym: '18:00', evening: '21:00' };
+// Kinds (each can be off): morning plan, meal reminders at the person's usual times (naming what they planned),
+// a workout reminder at their usual training time, a nightly recap (or a streak warning), and friends.
+// At most 6 a day, at most 2 per run, nothing twice. Times are the phone's local time.
+const DEF = { morning: '08:00', meals: true, workout: true, recap: '21:30', streak: true, drop: true, friends: true };
+const MAX_DAY = 6;
 const mins = hm => { const m = /^(\d{1,2}):(\d{2})$/.exec(hm || ''); return m ? +m[1] * 60 + +m[2] : -1; };
 const first = s => String(s || 'Your friend').split(' ')[0];
+const cap1 = s => s.charAt(0).toUpperCase() + s.slice(1);
+const cut = (s, n = 110) => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s);
 // dev: { prefs, state, tz (minutes east of UTC), sent, me, partner, nudges, reactions }
 export function due(dev, now = Date.now()) {
-  const p = { ...DEF, ...(dev.prefs || {}) }, st = dev.state || {}, sent = dev.sent || {};
+  const raw = dev.prefs || {}, p = { ...DEF, ...raw }, st = dev.state || {}, sent = dev.sent || {};
+  if (!('recap' in raw) && raw.evening) p.recap = raw.evening; // phones on the older settings
+  if (raw.remind === false && !('meals' in raw)) { p.morning = ''; p.meals = false; p.workout = false; }
   const local = new Date(now + (dev.tz || 0) * 60000), day = local.toISOString().slice(0, 10), m = local.getUTCHours() * 60 + local.getUTCMinutes(), dow = local.getUTCDay();
   const at = (hm) => { const t = mins(hm); return t >= 0 && m >= t && m < t + 40; };
   const today = st.day === day, score = today ? st.score || 0 : 0, plan = (st.plan || [])[dow] || '', trained = today && st.trained;
+  const meals = today ? st.meals : st.tmr && st.tmr.day === day ? st.tmr.meals : null;
   const streak = st.day === day || st.day === prevDay(day) ? st.streak || 0 : 0;
   const ps = dev.partner && dev.partner.stats || {}, duoOn = !!(dev.me && dev.partner && ps.duo === dev.me.handle && (dev.me.stats || {}).duo === dev.partner.handle);
   const theyDid = duoOn && ps.day === day && (ps.score || 0) >= 45, pname = dev.partner ? first(dev.partner.display || dev.partner.handle) : '';
   const out = [], mark = {};
-  if ((p.remind || p.drop) && sent.morning !== day && at(p.morning)) {
+  const add = (tag, title, body, url = './') => out.push({ tag, title: cut(title, 60), body: cut(body), url });
+  if (p.morning && sent.morning !== day && at(p.morning)) {
     mark.morning = day;
-    const drop = st.drop && st.drop.k === day ? st.drop : null;
-    out.push({ tag: 'morning', title: plan ? `${plan} today` : 'Rest day', body: p.drop ? (drop ? `Today’s drop: ${drop.t}` : 'Today’s drop is live. Open to see it.') : plan ? `${plan} is on the plan. ${st.cold ? `Your ${st.cold.toLowerCase()} could use it too.` : ''}`.trim() : 'Recover today. Walk, eat well, sleep.' });
+    const drop = st.drop && st.drop.k === day ? st.drop : null, bf = meals && meals.breakfast && meals.breakfast.plan && meals.breakfast.plan.length ? meals.breakfast.plan.join(', ') : '';
+    const bits = [bf ? `Breakfast: ${bf}.` : '', p.drop ? (drop ? `Drop: ${drop.t}.` : 'Today’s drop is live.') : '', !plan && !bf ? 'Recover: walk, eat well, sleep.' : ''].filter(Boolean);
+    add('morning', plan ? `${plan} today` : 'Rest day', bits.join(' ') || `${plan} is on the plan.`, './?n=morning');
   }
-  if (p.remind && plan && !trained && sent.gym !== day && at(p.gym)) {
+  if (p.meals && meals) ['breakfast', 'lunch', 'dinner'].forEach(t => {
+    const x = meals[t]; if (!x || sent['m_' + t] === day || !at(x.at)) return;
+    mark['m_' + t] = day;
+    if (today && x.logged) return;
+    const planned = (x.plan || []).length;
+    add('meal-' + t, cap1(t), planned ? `Planned: ${x.plan.join(', ')}${x.kcal ? ` · ${x.kcal} kcal` : ''}. Tap when you’ve eaten it.` : `${cap1(t)} time? Snap it so today counts.`, './?n=meal&t=' + t);
+  });
+  if (p.workout && plan && !trained && sent.gym !== day && at(st.woAt || '18:00')) {
     mark.gym = day;
-    out.push({ tag: 'gym', title: `${plan} is still on for today`, body: st.ghost ? `Your ghost from last time: ${st.ghost}. Beat it.` : 'Your last session is waiting to be beaten.' });
+    add('workout', `Time for ${plan}`, st.ghost ? `Your ghost lifted ${st.ghost} last time. Beat it.` : 'Your session is ready. Tap to start.', './?n=workout');
   }
-  if ((p.streak || p.remind) && sent.evening !== day && at(p.evening)) {
+  if ((p.recap || p.streak) && sent.evening !== day && at(p.recap || '21:30')) {
     mark.evening = day;
-    if (duoOn && theyDid && score < 45 && p.friends) out.push({ tag: 'evening', title: `${pname} did their part`, body: `Your duo streak needs ${45 - score} more points from you before midnight.` });
-    else if (p.streak && streak > 0 && score < 45) out.push({ tag: 'evening', title: `${streak}-day streak on the line`, body: `${45 - score} more points before midnight keeps it alive.` });
-    else if (p.remind && score < 70) out.push({ tag: 'evening', title: 'Close out today', body: score ? `${score} so far. ${70 - score} more for a win.` : 'Nothing logged yet today. A meal and a walk still count.' });
+    if (duoOn && theyDid && score < 45 && p.friends) add('evening', `${pname} did their part`, `Your duo streak needs ${45 - score} more points from you before midnight.`, './?n=recap');
+    else if (p.streak && streak > 0 && score < 45) add('evening', `${streak}-day streak on the line`, `${45 - score} more points before midnight keeps it alive.`, './?n=recap');
+    else if (p.recap) {
+      const tp = st.tmr && st.tmr.day === nextDay(day) && st.tmr.planned ? '' : ' Plan tomorrow’s meals?';
+      if (!today) add('recap', 'Nothing logged today', 'Two minutes of logging still counts.' + tp, './?n=recap');
+      else add('recap', `Today: ${score} · ${st.tier || ''}`.replace(/ · $/, ''), (st.parts || []).map(([n, ok]) => (ok ? '✓ ' : '✗ ') + n).join(' · ') + '.' + tp, './?n=recap');
+    }
   }
   if (p.friends && m >= 8 * 60 && m < 22 * 60 + 30) {
     const n = dev.nudges || [], r = dev.reactions || [];
     const verb = { nudge: 'nudged you', flex: 'is flexing on you', cheer: 'is cheering you on', challenge: 'challenged you' };
-    if (n.length) { const x = n[n.length - 1]; out.push({ tag: 'nudge', title: `${first(x.from)} ${verb[x.kind] || 'pinged you'}`, body: x.msg || (n.length > 1 ? `And ${n.length - 1} more` : 'Open Built to reply') }); }
-    else if (r.length) { const x = r[r.length - 1]; out.push({ tag: 'react', title: `${first(x.from)} reacted ${x.emoji}`, body: r.length > 1 ? `${r.length} new reactions on your posts` : `On your ${x.kind === 'workout' ? 'workout' : x.kind === 'day' ? 'day' : 'post'}` }); }
+    if (n.length) { const x = n[n.length - 1]; add('nudge', `${first(x.from)} ${verb[x.kind] || 'pinged you'}`, x.msg || (n.length > 1 ? `And ${n.length - 1} more` : 'Open Built to reply'), './?n=friends'); }
+    else if (r.length) { const x = r[r.length - 1]; add('react', `${first(x.from)} reacted ${x.emoji}`, r.length > 1 ? `${r.length} new reactions on your posts` : `On your ${x.kind === 'workout' ? 'workout' : x.kind === 'day' ? 'day' : 'post'}`, './?n=friends'); }
     if (n.length || r.length) mark.ev = [...n, ...r].map(x => x.at).sort().pop();
-    if (theyDid && score < 45 && sent.duo !== day && !out.some(o => o.tag === 'evening')) { mark.duo = day; out.push({ tag: 'duo', title: `${pname} did their part`, body: 'Your duo streak is waiting on you today.' }); }
+    if (theyDid && score < 45 && sent.duo !== day && !out.some(o => o.tag === 'evening')) { mark.duo = day; add('duo', `${pname} did their part`, 'Your duo streak is waiting on you today.', './?n=recap'); }
   }
-  return { out: out.slice(0, 2), sent: { ...sent, ...mark }, changed: Object.keys(mark).length > 0 };
+  const used = sent.n && sent.n.day === day ? sent.n.c : 0, send = out.slice(0, Math.max(0, Math.min(2, MAX_DAY - used)));
+  if (send.length) mark.n = { day, c: used + send.length };
+  return { out: send, sent: { ...sent, ...mark }, changed: Object.keys(mark).length > 0 };
 }
+function nextDay(day) { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); }
 function prevDay(day) { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); }
 
 /* ---------- the function ---------- */
@@ -114,7 +139,7 @@ export async function run(secret, env, f = fetch, now = Date.now(), opts = {}) {
     if (opts.test) d.out = [{ tag: 'test', title: 'Notifications are on', body: 'This is how Built will reach you. Change what you get in Settings → Notifications.' }];
     let dead = false;
     for (const msg of d.out) {
-      try { const s = await sendPush(dev.sub, { ...msg, url: './' }, b.keys, f); if (s === 404 || s === 410) { dead = true; break; } if (s < 300) sent++; } catch (e) { /* one bad phone shouldn't stop the rest */ }
+      try { const s = await sendPush(dev.sub, { ...msg, url: msg.url || './' }, b.keys, f); if (s === 404 || s === 410) { dead = true; break; } if (s < 300) sent++; } catch (e) { /* one bad phone shouldn't stop the rest */ }
     }
     if (dead) { gone++; await rpc('fm_push_mark', { p_secret: secret, p_id: dev.id, p_sent: d.sent, p_gone: true }); }
     else if (d.changed) await rpc('fm_push_mark', { p_secret: secret, p_id: dev.id, p_sent: d.sent, p_gone: false });

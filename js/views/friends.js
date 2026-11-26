@@ -214,6 +214,7 @@ A.closeDay = () => {
   <div class="card mt2"><div class="list">${sc.parts.map(p => `<div class="li noic"><span class="t">${p.n}</span><span class="r" style="color:${p.f >= 0.999 ? 'var(--win)' : 'var(--ink3)'}">${p.f >= 0.999 ? 'Done' : p.f > 0 ? 'Partly' : 'Not yet'}</span></div>`).join('')}</div></div>
   ${fr.length ? `<div class="card mt"><div class="chd"><h3>Friends today</h3><span class="r">${beat ? 'You beat ' + beat : 'Not your day'}</span></div><div class="list">${fr.slice(0, 5).map(x => `<div class="li">${avatar(x.f.avatar, 'sm', x.f.display)}<span><span class="t">${name(x.f)}</span></span><span class="r b">${x.s}</span></div>`).join('')}</div></div>` : ''}
   <div class="row mt2">${Social.on && S.settings.share.scores ? `<button class="btn grow" data-act="postDay" data-arg="${k}">${I.send} Post to friends</button>` : ''}<button class="btn ${Social.on ? 'ghost' : ''} grow" data-act="shareDay" data-arg="${k}">${I.share} Share</button></div>
+  ${k === todayK() && S.modules.food ? `<button class="btn ghost wide mt" data-act="planMeals" data-arg="${addDays(k, 1)}">${I.calendar} Plan tomorrow’s meals</button>` : ''}
   ${wasClosed || k !== todayK() ? '' : '<p class="faint small center mt">You can still log after closing. The score updates.</p>'}`);
   render();
 };

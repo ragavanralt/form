@@ -8,27 +8,51 @@ const t = async (name, f) => { await f(); console.log('ok', name); };
 const at = (h, m, day = 23) => Date.UTC(2026, 10, day, h, m); // UTC; the phones below are UTC-5 (tz -300)
 const plan = ['', 'Upper', 'Lower', '', 'Upper', 'Lower', ''];
 
-await t('morning push names the plan and the drop', () => {
-  const r = due({ tz: -300, state: { day: '2026-11-23', drop: { k: '2026-11-23', t: 'Hit 160 g protein' }, plan } }, at(13, 31));
-  assert.equal(r.out[0].title, 'Upper today'); assert.match(r.out[0].body, /160 g protein/);
-  assert.equal(due({ tz: -300, sent: r.sent, state: { plan } }, at(13, 41)).out.length, 0, 'never twice a day');
+const meals = (o = {}) => ({ breakfast: { at: '08:10', logged: false, plan: [], kcal: 0 }, lunch: { at: '12:40', logged: false, plan: ['Chicken rice bowl'], kcal: 650 }, dinner: { at: '18:30', logged: false, plan: [], kcal: 0 }, ...o });
+await t('morning push: today’s workout, planned breakfast and the drop', () => {
+  const st = { day: '2026-11-23', drop: { k: '2026-11-23', t: 'Hit 160 g protein' }, plan, meals: meals({ breakfast: { at: '08:10', plan: ['Oats'], kcal: 400 } }) };
+  const r = due({ tz: -300, state: st }, at(13, 1));
+  assert.equal(r.out[0].title, 'Upper today'); assert.match(r.out[0].body, /Breakfast: Oats/); assert.match(r.out[0].body, /160 g protein/); assert.equal(r.out[0].url, './?n=morning');
+  assert.equal(due({ tz: -300, sent: r.sent, state: st }, at(13, 21)).out.filter(o => o.tag === 'morning').length, 0, 'never twice a day');
+});
+await t('meal reminders at the usual time, naming the plan, skipped once logged', () => {
+  const r = due({ tz: -300, state: { day: '2026-11-23', plan, meals: meals() } }, at(17, 45)); // 12:45
+  assert.equal(r.out[0].title, 'Lunch'); assert.match(r.out[0].body, /Planned: Chicken rice bowl · 650 kcal/); assert.equal(r.out[0].url, './?n=meal&t=lunch');
+  assert.equal(due({ tz: -300, state: { day: '2026-11-23', plan, meals: meals({ lunch: { at: '12:40', logged: true, plan: [] } }) } }, at(17, 45)).out.length, 0);
+  assert.match(due({ tz: -300, state: { day: '2026-11-23', plan, meals: meals() } }, at(23, 35)).out[0].body, /Dinner time\? Snap it/);
+  assert.equal(due({ tz: -300, prefs: { meals: false }, state: { day: '2026-11-23', plan, meals: meals() } }, at(17, 45)).out.length, 0);
+});
+await t('a day planned the night before still gets its reminders', () => {
+  const st = { day: '2026-11-22', plan, tmr: { day: '2026-11-23', meals: meals(), planned: 1 } };
+  assert.match(due({ tz: -300, state: st }, at(17, 45)).out[0].body, /Chicken rice bowl/);
+});
+await t('workout reminder at the usual training time, not on rest days or once trained', () => {
+  const g = at(22, 50); // 17:50
+  const st = { day: '2026-11-23', trained: false, plan, woAt: '17:45', ghost: '7,900 kg' };
+  const r = due({ tz: -300, state: st }, g);
+  assert.equal(r.out[0].title, 'Time for Upper'); assert.match(r.out[0].body, /7,900 kg/); assert.equal(r.out[0].url, './?n=workout');
+  assert.equal(due({ tz: -300, state: { ...st, trained: true } }, g).out.length, 0);
+  assert.equal(due({ tz: -300, state: { ...st, plan: ['', '', '', '', '', '', ''] } }, g).out.length, 0);
+});
+await t('nightly recap, or a streak warning when today doesn’t count', () => {
+  const ev = at(2, 35, 24); // 21:35 local on the 23rd
+  const parts = [['Upper done', 1], ['140/160 g protein', 0], ['9.2k steps', 1]];
+  const r = due({ tz: -300, state: { day: '2026-11-23', score: 78, tier: 'Win', streak: 12, parts } }, ev);
+  assert.equal(r.out[0].title, 'Today: 78 · Win'); assert.match(r.out[0].body, /✓ Upper done · ✗ 140\/160 g protein/); assert.match(r.out[0].body, /Plan tomorrow/);
+  assert.ok(!/Plan tomorrow/.test(due({ tz: -300, state: { day: '2026-11-23', score: 78, tier: 'Win', parts, tmr: { day: '2026-11-24', planned: 2 } } }, ev).out[0].body), 'no nudge when tomorrow is planned');
+  assert.match(due({ tz: -300, state: { day: '2026-11-23', score: 30, streak: 12 } }, ev).out[0].title, /12-day streak/);
+  assert.match(due({ tz: -300, state: { day: '2026-11-22', score: 80, streak: 12 } }, ev).out[0].title, /streak on the line/);
+  assert.equal(due({ tz: -300, state: { day: '2026-11-20' } }, ev).out[0].title, 'Nothing logged today');
+  assert.equal(due({ tz: -300, prefs: { evening: '21:00' }, state: { day: '2026-11-23', score: 78, tier: 'Win', parts } }, at(2, 5, 24)).out[0].tag, 'recap', 'older phones keep their evening time');
+});
+await t('never more than 6 a day, 2 at a time', () => {
+  const r = due({ tz: -300, sent: { n: { day: '2026-11-23', c: 6 } }, state: { day: '2026-11-23', plan, meals: meals() } }, at(17, 45));
+  assert.equal(r.out.length, 0);
+  assert.equal(due({ tz: -300, sent: { n: { day: '2026-11-22', c: 6 } }, state: { day: '2026-11-23', plan, meals: meals() } }, at(17, 45)).out.length, 1, 'the count resets daily');
 });
 await t('nothing at night, nothing outside the windows', () => {
   assert.equal(due({ tz: -300, state: { plan } }, at(7, 0)).out.length, 0);
   assert.equal(due({ tz: -300, state: { plan } }, at(16, 0)).out.length, 0);
-});
-await t('streak at risk in the evening, only if it is', () => {
-  const ev = at(2, 5, 24); // 21:05 local on the 23rd
-  assert.match(due({ tz: -300, state: { day: '2026-11-23', score: 30, streak: 12 } }, ev).out[0].title, /12-day streak/);
-  assert.match(due({ tz: -300, state: { day: '2026-11-22', score: 80, streak: 12 } }, ev).out[0].body, /45 more points/);
-  assert.equal(due({ tz: -300, state: { day: '2026-11-23', score: 75, streak: 12 } }, ev).out.length, 0);
-  assert.match(due({ tz: -300, prefs: { streak: false }, state: { day: '2026-11-23', score: 50, streak: 12 } }, ev).out[0].title, /Close out/);
-});
-await t('gym reminder skips days you trained or rest days', () => {
-  const g = at(23, 2); // 18:02 local
-  assert.match(due({ tz: -300, state: { day: '2026-11-23', trained: false, plan } }, g).out[0].title, /Upper is still on/);
-  assert.equal(due({ tz: -300, state: { day: '2026-11-23', trained: true, plan } }, g).out.length, 0);
-  assert.equal(due({ tz: -300, state: { plan: ['', '', '', '', '', '', ''] } }, g).out.length, 0);
 });
 await t('friends: nudges, and the duo partner doing their part', () => {
   const me = { handle: 'sam', stats: { duo: 'jay' } }, partner = { handle: 'jay', display: 'Jay K', stats: { duo: 'sam', day: '2026-11-23', score: 72 } };

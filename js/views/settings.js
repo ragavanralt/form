@@ -1,7 +1,8 @@
 // Settings: profile, modules, targets, appearance, AI, friends and privacy, reminders, data.
 import { S, save, touch, render, replaceState, hasV1, readV1, KEY } from '../store.js';
 import { MODULES, ACTIVITY, suggestTargets, weights, PART, esc, fmt, nint, num, todayK, migrateV1, normalize, freshState, addDays, pdk, totals, score, FEATURES } from '../core.js';
-import { Push, pushOn, pushOff, pushOnNow, pushErr, pushCan, standalone, isIOS, pushSync, prepPush, pushTest } from '../push.js';
+import { Push, pushOn, pushOff, pushOnNow, pushErr, pushCan, standalone, isIOS, pushSync, prepPush, pushTest, NOTIF_KINDS } from '../push.js';
+import { mealTimes, workoutTime } from '../habits.js';
 import { SERVER } from '../social.js';
 import { calOn, calEnable, calDisable, calFeed } from '../calsync.js';
 import { A, CH, I, $, openSheet, setSheet, closeSheet, toast, toggle, download, pickFiles, avatar, avPicker } from '../ui.js';
@@ -108,20 +109,36 @@ A.sDel = async () => { if (!confirm('Delete your friends profile, posts and reac
 
 /* ---------- reminders (calendar file: iPhone web apps can't schedule notifications) ---------- */
 A.setRemind = () => {
-  const R2 = S.settings.remind, N = S.settings.notif = S.settings.notif || {}, onNow = pushOnNow();
+  const R2 = S.settings.remind, N = S.settings.notif = S.settings.notif || {}, onNow = pushOnNow(), mt = mealTimes(S), wt = workoutTime(S);
   const blocked = typeof Notification !== 'undefined' && Notification.permission === 'denied';
-  const kinds = [['remind', 'Reminders', 'Morning plan, training days, closing out the day'], ['streak', 'Streak at risk', 'An evening heads-up if today doesn’t count yet'], ['drop', 'Daily Drop', 'Tells you what today’s challenge is'], ['friends', 'Friends', 'Nudges, reactions, your duo partner']];
   prepPush();
-  const top = onNow ? `<div class="card tight"><div class="li noic"><span><span class="t">Phone notifications</span><span class="s">On for this phone</span></span>${toggle('pushT', true)}</div><button class="li noic" data-act="pushTestGo"><span><span class="t">Send a test notification</span><span class="s">Arrives in a few seconds</span></span><span class="chev">${I.send}</span></button></div>`
+  const top = onNow ? `<div class="card tight"><div class="li noic"><span><span class="t">Notifications are on</span><span class="s">For this phone</span></span>${toggle('pushT', true)}</div><button class="li noic" data-act="pushTestGo"><span><span class="t">Send a test notification</span><span class="s">Arrives in a few seconds</span></span><span class="chev">${I.send}</span></button></div>`
     : isIOS() && !standalone() ? `<div class="note">On iPhone, notifications only work from the Home Screen app. Tap Share → Add to Home Screen, open Built from there, then come back here.</div>`
     : !pushCan() ? `<div class="note">This browser can’t show notifications. Calendar reminders below still work.</div>`
     : `<button class="btn wide" data-act="pushT">${I.bell} Turn on notifications</button>${blocked ? '<p class="faint small center">Blocked in your phone’s settings. Allow them for Built there first.</p>' : ''}`;
+  const time = (key, val, note) => `<div class="li noic sub"><span><span class="t">${note[0]}</span><span class="s">${note[1]}</span></span><input type="time" value="${val}" data-ch="nTime" data-k="${key}" style="width:136px;padding:8px"></div>`;
+  const learned = x => (x.set ? ['Set by you'] : x.learned ? ['Learned from your log'] : ['Default until you’ve logged a few']);
+  const extra = {
+    morning: () => time('morning', R2.morning || '08:00', ['Time', '']),
+    meals: () => ['breakfast', 'lunch', 'dinner'].map(k => time(k, mt[k].at, [MEAL_LABEL[k], learned(mt[k]).filter(Boolean).join(' · ')])).join('') + (['breakfast', 'lunch', 'dinner'].some(k => mt[k].set) ? `<button class="link small sub" data-act="nAuto" data-arg="meals">Go back to learned times</button>` : ''),
+    workout: () => time('workout', wt.at, ['Time', learned(wt).filter(Boolean).join(' · ')]) + (wt.set ? `<button class="link small sub" data-act="nAuto" data-arg="workout">Go back to learned time</button>` : ''),
+    recap: () => time('evening', R2.evening || '21:30', ['Time', '']),
+  };
+  const kinds = NOTIF_KINDS.filter(([k]) => (k !== 'meals' || S.modules.food) && (k !== 'workout' || S.modules.train) && (k !== 'friends' || S.settings.features.friends !== false) && (k !== 'streak' || S.settings.features.streak !== false));
   openSheet('rem', 'Notifications', `${top}
-  <div class="sec"><div class="lab">What to send</div><div class="card tight"><div class="list">${kinds.map(([k, t, s2]) => `<div class="li noic"><span><span class="t">${t}</span><span class="s">${s2}</span></span>${toggle('notifT', N[k] !== false, k)}</div>`).join('')}</div></div></div>
-  <div class="sec"><div class="lab">Times</div><div class="card tight"><div class="list">${[['morning', 'Morning'], ['gym', 'Training reminder'], ['evening', 'Evening check']].map(([k, t]) => `<div class="li noic"><span class="t">${t}</span><input type="time" value="${R2[k]}" data-ch="remT" data-k="${k}" style="width:136px;padding:8px"></div>`).join('')}</div></div><p class="faint small">No friend pings between 10:30 pm and 8 am.</p></div>
-  ${onNow ? '' : `<div class="sec"><div class="lab">Can’t use notifications?</div><a class="btn line wide" href="${calUrl()}" target="_blank" rel="noopener" data-act="remCal">${I.calendar} Add reminders to Calendar</a><p class="faint small">Reminders as calendar alerts instead. Tap <b>Add All</b>.</p></div>`}
-  <p class="faint small mt">Want your workouts and food in your calendar? That’s Settings → Calendar.</p>`, { full: true });
+  <div class="sec"><div class="lab">What you get</div><div class="card tight"><div class="list">${kinds.map(([k, t, s2]) => `<div class="li noic"><span><span class="t">${t}</span><span class="s">${s2}</span></span>${toggle('notifT', N[k] !== false, k)}</div>${N[k] !== false && extra[k] ? extra[k]() : ''}`).join('')}</div></div>
+  <p class="faint small">At most 6 a day. Nothing for a meal you’ve already logged or a workout you’ve done. No friend pings between 10:30 pm and 8 am.</p></div>
+  ${S.modules.food ? `<button class="btn ghost wide" data-act="planMeals">${I.calendar} Plan tomorrow’s meals</button>` : ''}
+  ${onNow ? '' : `<div class="sec"><div class="lab">Can’t use notifications?</div><a class="btn line wide" href="${calUrl()}" target="_blank" rel="noopener" data-act="remCal">${I.calendar} Add reminders to Calendar</a><p class="faint small">Reminders as calendar alerts instead. Tap <b>Add All</b>.</p></div>`}`, { full: true });
 };
+const MEAL_LABEL = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner' };
+CH.nTime = el => {
+  const k = el.dataset.k, v = el.value; if (!/^\d{1,2}:\d{2}$/.test(v)) return;
+  if (k === 'morning' || k === 'evening') S.settings.remind[k] = v;
+  else { const N = S.settings.notif = S.settings.notif || {}; N.times = { ...(N.times || {}), [k]: v }; }
+  save(); pushSync();
+};
+A.nAuto = which => { const N = S.settings.notif = S.settings.notif || {}, t = { ...(N.times || {}) }; (which === 'meals' ? ['breakfast', 'lunch', 'dinner'] : ['workout']).forEach(k => delete t[k]); N.times = t; save(); pushSync(); A.setRemind(); };
 A.pushT = async (a, btn) => {
   if (pushOnNow()) { await pushOff(); toast('Notifications off'); A.setRemind(); return; }
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Turning on…'; }

@@ -7,11 +7,12 @@ const rings = (it, size) => rings0(it.map((x, i) => ({ f: x.f, k: ['fuel', 'trai
 import { PROGRAMS, findEx } from '../exercises.js';
 import { applyProgram } from './train.js';
 import { aiOn, setGemKey, testKey, planFromText, errMsg, gemKey } from '../ai.js';
+import { pushOn, pushErr, pushCan, standalone, isIOS, pushOnNow } from '../push.js';
 
 const GOALS = [['fat', 'Lose fat', I.flame, 'food'], ['muscle', 'Build muscle', I.dumb, 'train'], ['strength', 'Get stronger', I.bolt, 'train'], ['eat', 'Eat better', I.leaf, 'move'], ['fit', 'Fitter and healthier', I.run, 'move'], ['habit', 'Build a routine I stick to', I.calendar, 'habit']];
 const MOD_IC = { food: [I.cam, 'food'], train: [I.dumb, 'train'], cardio: [I.run, 'move'], steps: [I.shoe, 'move'], water: [I.drop, 'water'], supps: [I.pill, 'habit'], weight: [I.scale, 'body'] };
 const OB = { i: 0, p: {}, ai: '', busy: false, plan: null };
-const STEPS = ['welcome', 'name', 'goals', 'modules', 'body', 'targets', 'training', 'supps', 'social', 'ai', 'done'];
+const STEPS = ['welcome', 'name', 'goals', 'modules', 'body', 'targets', 'training', 'supps', 'social', 'ai', 'notify', 'done'];
 const skip = s => ({ body: !S.modules.food, targets: !(S.modules.food || S.modules.steps || S.modules.water || S.modules.cardio), training: !S.modules.train, supps: !S.modules.supps })[s] || false;
 
 export function startOnboarding() { OB.i = 0; const f = freshState(); S.modules = f.modules; $('#onboard').hidden = false; draw(); }
@@ -81,6 +82,14 @@ function draw() {
     <input id="obkey" class="mt" type="password" placeholder="Paste your key" value="${esc(gemKey())}" autocomplete="off"><div id="obkeyout"></div>
     <button class="btn sm ghost mt" data-act="obKey">Test key</button></div>
     <div class="foot"><button class="btn wide" data-act="obNext">${gemKey() ? 'Continue' : 'Continue'}</button><button class="btn ghost wide" data-act="obNextNoKey">Skip, I’ll log by hand</button></div>`;
+  } else if (s === 'notify') {
+    // A screen of our own before iPhone's one-time permission popup: say what's coming, then ask.
+    const can = pushCan(), inSafari = isIOS() && !standalone(), F = S.modules.food, T = S.modules.train;
+    const ex = [[I.calendar, 'Every morning', T ? 'What’s on today: your workout and today’s drop' : 'Today’s drop and your plan'], F ? [I.leaf, 'At your meal times', 'Lunch: chicken rice bowl. Tap when you’ve eaten it'] : null, T ? [I.dumb, 'At your training time', 'Time for Upper. Your ghost lifted 7,900 kg'] : null, [I.moon, 'Every night', 'Today: 78 · Win. ✓ Workout · ✗ Protein. Plan tomorrow?']].filter(Boolean);
+    h = `${bar()}<h1>Stay on track without thinking</h1><p class="lead">Built learns when you usually eat and train, and reminds you then. Never more than 6 a day, and nothing for things you’ve already logged.</p>
+    <div class="col" style="gap:12px">${ex.map(([ic, t, b]) => `<div class="npv"><span class="fi">${ic}</span><span><b>${t}</b><span>${b}</span></span></div>`).join('')}</div>
+    ${inSafari ? '<div class="note mt">On iPhone, notifications work once Built is on your Home Screen. Add it (Share → Add to Home Screen), open it from there and turn them on in Settings → Notifications.</div>' : ''}
+    <div class="foot">${can && !pushOnNow() ? `<button class="btn wide" data-act="obPush">${I.bell} Turn on reminders</button><button class="btn ghost wide" data-act="obNext">Not now</button>` : `<button class="btn wide" data-act="obNext">${pushOnNow() ? 'Reminders are on. Continue' : 'Continue'}</button>`}</div>`;
   } else if (s === 'done') {
     h = `<div class="hello" style="min-height:300px">${rings([{ f: 1, c: 'food' }, { f: 1, c: 'train' }, { f: 1, c: 'move' }], 220, 18, 6)}<h1>You’re set${P.name ? ', ' + esc(P.name.split(' ')[0]) : ''}.</h1><p>Every day gets a score out of 100. 70 is a win. Win days to build your streak and climb levels.</p></div>
     <div class="col" style="gap:14px"><div class="feat"><span class="fi">${I.plus}</span><span><b>The + button logs anything</b><span>Snap a meal, start a workout, tick your stack.</span></span></div>
@@ -146,6 +155,7 @@ A.obSuppAdd = () => { const n = ($('#obsx').value || '').trim(); if (n) { S.supp
 A.obSoc = v => { S.profile.social = v; draw(); };
 A.obKey = async () => { const k = ($('#obkey').value || '').trim(); const out = $('#obkeyout'); if (!k) return; out.innerHTML = '<div class="thinking"><span class="spin"></span>Testing…</div>'; try { await testKey(k); out.innerHTML = `<div class="note mt" style="color:var(--win)">${I.check.replace('<svg', '<svg style="width:14px;height:14px;vertical-align:-2px"')} Key works. AI is on.</div>`; } catch (e) { out.innerHTML = `<div class="err mt">${esc(errMsg(e))}</div>`; } };
 A.obNextNoKey = () => { go(1); };
+A.obPush = async (a, btn) => { if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Turning on…'; } try { await pushOn(); toast('Reminders on'); } catch (e) { toast(pushErr(e), null, 6000); } go(1); };
 A.obFinish = () => {
   S.onboarded = true; S.profile.start = S.profile.start && S.profile.start <= todayK() ? S.profile.start : todayK();
   if (!S.supps.length) S.modules.supps = false;

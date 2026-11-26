@@ -67,6 +67,21 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 setInterval(() => { if (todayK() !== lastDay) wake(); }, 60000);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 
+// A tapped notification opens the screen it is about: ?n=meal&t=lunch, ?n=workout, ?n=recap, ?n=morning, ?n=friends, ?n=plan
+function openFromNotification(url) {
+  let q; try { q = new URL(url, location.href).searchParams; } catch (e) { return; }
+  const n = q.get('n'); if (!n || !S.onboarded) return;
+  setTimeout(() => {
+    if (n === 'meal') { A.go('today'); A.mealNow(q.get('t')); }
+    else if (n === 'workout') { A.go('train'); A.startPlanned(); }
+    else if (n === 'recap') { A.go('today'); A.closeDay(); }
+    else if (n === 'plan') A.planMeals();
+    else if (n === 'friends' && on('friends')) A.go('friends');
+    else A.go('today');
+  }, 700);
+  if (location.search.includes('n=')) history.replaceState(null, '', location.pathname);
+}
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.open) openFromNotification(e.data.open); });
 async function boot() {
   applyTheme();
   paintTabs();
@@ -84,6 +99,7 @@ async function boot() {
   if (Social.on) { await refresh(); handleAddParam(); setTimeout(popup, 600); }
   else { ping().then(() => { if (R.cur === 'friends') vFriends(); }); handleAddParam(); setTimeout(popup, 600); }
   pushSync(); prepPush(); calSync(2000);
+  openFromNotification(location.href);
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 boot();
