@@ -2,3 +2,5 @@
 node_modules/
 *.local.sql
 node_modules
+research_notes/
+reports/
